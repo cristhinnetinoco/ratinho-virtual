@@ -7,18 +7,6 @@ const FOODS = {
   bolo:    {name:'Bolo',     price:12, hunger:45, fun:20, w:8,  desc:'Festa! Mas engorda.'},
   sopa:    {name:'Sopa',     price:8,  hunger:25, fun:0,  w:2,  energy:15, desc:'Quentinha. Dá energia.'}
 };
-const DECOR = {
-  tapete:        {name:'Tapete de retalho',     price:25, kind:'floor'},
-  planta:        {name:'Planta no dedal',        price:30, kind:'furn'},
-  poster:        {name:'Pôster de queijo',       price:35, kind:'wall'},
-  carretel:      {name:'Mesa de carretel',       price:40, kind:'furn'},
-  lampada:       {name:'Luminária de tampinha',  price:45, kind:'furn'},
-  cama:          {name:'Cama caixa de fósforo',  price:50, kind:'furn'},
-  roda:          {name:'Rodinha de correr',      price:70, kind:'furn'},
-  papel_listras: {name:'Papel listrado',         price:60, kind:'paper'},
-  papel_bolinhas:{name:'Papel de bolinhas',      price:60, kind:'paper'},
-  papel_coracoes:{name:'Papel de corações',      price:80, kind:'paper'}
-};
 const SAVE_KEY = 'ratinho-virtual.save.v1';
 const HOUR = 3600000;
 const clamp = (v, lo, hi) => Math.max(lo == null ? 0 : lo, Math.min(hi == null ? 100 : hi, v));
@@ -30,7 +18,9 @@ function newState(){
     sick:false, sickAcc:0, sleeping:false,
     poops:0, nextPoop:6, weight:30, coins:20, age:0,
     stage:'baby', form:'', care:{hunger:0, energy:0, hygiene:0, fun:0, t:0},
-    inv:{queijo:3, semente:3}, hats:[], hat:'', decor:[], paper:'', skins:['bege'], skin:'bege',
+    inv:{queijo:3, semente:3},
+    hats:[], hat:'', outfits:[], outfit:'',
+    furn:{}, decor:[], paper:'', skins:['bege'], skin:'bege', room:0,
     stats:{fed:0, played:0, baths:0, meds:0, pets:0, evolutions:0},
     best:{}, sound:true, pending:[]
   };
@@ -51,6 +41,11 @@ function load(){
     S.care = Object.assign({hunger:0, energy:0, hygiene:0, fun:0, t:0}, d.care || {});
     S.stats = Object.assign(newState().stats, d.stats || {});
     S.inv = d.inv || {};
+    S.furn = d.furn || {};
+    S.outfits = d.outfits || []; S.outfit = d.outfit || '';
+    S.decor = (d.decor || []).filter(k => DECOR[k]);
+    if (S.paper && !DECOR[S.paper]) S.paper = '';
+    S.room = Math.min(2, Math.max(0, d.room || 0));
     S.pending = [];
     return true;
   } catch (e) { return false; }
@@ -63,6 +58,7 @@ function importCode(code){
     const d = JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
     if (!d || d.v !== 1 || typeof d.hunger !== 'number') return false;
     S = Object.assign(newState(), d);
+    S.furn = d.furn || {}; S.outfits = d.outfits || []; S.decor = (d.decor || []).filter(k => DECOR[k]);
     S.pending = [];
     save();
     return true;
@@ -97,9 +93,9 @@ function tick(ms){
   const sm = S.sleeping ? 0.5 : 1;
   S.hunger  = clamp(S.hunger - 2.2 * h * sm);
   S.fun     = clamp(S.fun - (2.5 + (S.sick ? 1.5 : 0)) * h * sm);
-  S.hygiene = clamp(S.hygiene - (1.6 + S.poops * 0.7) * h);
+  S.hygiene = clamp(S.hygiene - (1.6 + S.poops * 0.7) * h * (hasUpgrade('pia') ? 0.7 : 1));
   if (S.sleeping){
-    S.energy = clamp(S.energy + 14 * h);
+    S.energy = clamp(S.energy + (hasUpgrade('cama') ? 18 : 14) * h);
     if (S.energy >= 100){ S.sleeping = false; S.pending.push('woke'); }
   } else {
     S.energy = clamp(S.energy - 2.8 * h);
@@ -114,7 +110,7 @@ function tick(ms){
     S.nextPoop -= h;
     if (S.nextPoop <= 0){
       if (S.poops < 3){ S.poops++; S.pending.push('poop'); }
-      S.nextPoop = 7 + Math.random() * 5;
+      S.nextPoop = (7 + Math.random() * 5) * (hasUpgrade('privada') ? 1.5 : 1);
     }
   }
   if (!S.sick){
@@ -156,6 +152,7 @@ function needs(){
   if (S.sick) n.push('sick');
   return n;
 }
+function foodPrice(key){ return Math.max(1, FOODS[key].price - (hasUpgrade('geladeira') ? 1 : 0)); }
 
 /* ---- acoes ---- */
 function feed(key){
@@ -166,8 +163,8 @@ function feed(key){
   if (S.hunger >= 95 && f.fun === 0) return {ok:false, msg:S.name + ' está cheio!'};
   S.inv[key]--;
   S.hunger = clamp(S.hunger + f.hunger);
-  S.fun = clamp(S.fun + (f.fun || 0));
-  if (f.energy) S.energy = clamp(S.energy + f.energy);
+  S.fun = clamp(S.fun + (f.fun || 0) + (hasUpgrade('mesa') ? 5 : 0));
+  if (f.energy) S.energy = clamp(S.energy + f.energy * (hasUpgrade('fogao') ? 2 : 1));
   if (f.hygiene) S.hygiene = clamp(S.hygiene + f.hygiene);
   S.weight = clamp(S.weight + f.w, 20, 200);
   S.stats.fed++;
@@ -188,6 +185,7 @@ function bath(){
   if (S.sleeping) return {ok:false, msg:'Shh... ' + S.name + ' está dormindo.'};
   const had = S.poops > 0 || S.hygiene < 100;
   S.hygiene = 100; S.poops = 0; S.stats.baths++;
+  if (hasUpgrade('banheira')) S.fun = clamp(S.fun + 5);
   save();
   return {ok:true, msg:had ? 'Splish splash! Limpinho.' : 'Já estava limpinho!'};
 }
@@ -206,7 +204,7 @@ let _lastPet = 0;
 function petRat(){
   if (S.sleeping) return {ok:false, msg:'Zzz...'};
   const now = Date.now();
-  if (now - _lastPet > 8000){ S.fun = clamp(S.fun + 3); S.stats.pets++; _lastPet = now; save(); }
+  if (now - _lastPet > 8000){ S.fun = clamp(S.fun + (hasUpgrade('sofa') ? 5 : 3)); S.stats.pets++; _lastPet = now; save(); }
   return {ok:true, msg:''};
 }
 function finishGame(id, score, coins){
@@ -220,16 +218,20 @@ function finishGame(id, score, coins){
 }
 function buy(cat, key){
   let price, owned = false;
-  if (cat === 'food'){ price = FOODS[key].price; }
+  if (cat === 'food'){ price = foodPrice(key); }
   else if (cat === 'hat'){ price = HATS[key].price; owned = S.hats.includes(key); }
+  else if (cat === 'outfit'){ price = OUTFITS[key].price; owned = S.outfits.includes(key); }
   else if (cat === 'decor'){ price = DECOR[key].price; owned = S.decor.includes(key); }
+  else if (cat === 'furn'){ price = FURN[key].tiers[1].price; owned = hasUpgrade(key); }
   else if (cat === 'skin'){ price = SKINS[key].price; owned = S.skins.includes(key); }
   if (owned) return {ok:false, msg:'Você já tem esse.'};
-  if (S.coins < price) return {ok:false, msg:'Moedas insuficientes.'};
+  if (S.coins < price) return {ok:false, msg:'Faltam ' + (price - S.coins) + ' moedas.'};
   S.coins -= price;
   if (cat === 'food'){ S.inv[key] = (S.inv[key] || 0) + 1; }
   else if (cat === 'hat'){ S.hats.push(key); S.hat = key; }
+  else if (cat === 'outfit'){ S.outfits.push(key); S.outfit = key; }
   else if (cat === 'decor'){ S.decor.push(key); if (DECOR[key].kind === 'paper') S.paper = key; }
+  else if (cat === 'furn'){ S.furn[key] = 1; }
   else if (cat === 'skin'){ S.skins.push(key); S.skin = key; }
   save();
   return {ok:true, msg:'Comprado!'};

@@ -6,7 +6,7 @@ import pathlib, re, sys
 
 ROOT = pathlib.Path(__file__).parent
 SRC = ROOT / "src"
-JS_FILES = ["sprites.js", "rat.js", "pet.js", "sfx.js", "scene.js", "ui.js", "games.js", "main.js"]
+JS_FILES = ["sprites.js", "rat.js", "furniture.js", "pet.js", "sfx.js", "scene.js", "ui.js", "games.js", "main.js"]
 
 css = (SRC / "style.css").read_text(encoding="utf-8")
 markup = (SRC / "markup.html").read_text(encoding="utf-8")
@@ -23,7 +23,7 @@ for m in re.finditer(r"(\w+):\[\s*((?:'[^']*',?\s*)+)\]", block):
         print(f"AVISO sprite {name}: larguras {sorted(widths)}", file=sys.stderr)
 
 fonts = '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap">'
-head = f"<title>Ratinho Virtual</title>\n{fonts}\n<style>\n{css}\n</style>\n"
+head = f"<title>Tem um rato aqui</title>\n{fonts}\n<style>\n{css}\n</style>\n"
 script = f"<script>\n{js}\n</script>\n"
 
 fragment = head + markup + "\n" + script
@@ -42,7 +42,7 @@ standalone = (
     "<meta name=\"apple-mobile-web-app-capable\" content=\"yes\">\n"
     "<meta name=\"mobile-web-app-capable\" content=\"yes\">\n"
     "<meta name=\"apple-mobile-web-app-status-bar-style\" content=\"black-translucent\">\n"
-    "<meta name=\"apple-mobile-web-app-title\" content=\"Ratinho\">\n"
+    "<meta name=\"apple-mobile-web-app-title\" content=\"Tem um rato\">\n"
     "<meta name=\"theme-color\" content=\"#1b1233\">\n"
     "<link rel=\"manifest\" href=\"manifest.webmanifest\">\n"
     "<link rel=\"apple-touch-icon\" href=\"icons/icon-180.png\">\n"

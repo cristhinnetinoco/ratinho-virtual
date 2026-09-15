@@ -1,6 +1,6 @@
 {
-  "name": "Ratinho Virtual",
-  "short_name": "Ratinho",
+  "name": "Tem um rato aqui",
+  "short_name": "Tem um rato",
   "description": "Bichinho virtual com um ratinho: cuide dele, jogue mini-jogos e veja ele evoluir.",
   "start_url": "./",
   "scope": "./",
