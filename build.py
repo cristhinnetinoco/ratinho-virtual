@@ -6,7 +6,7 @@ import pathlib, re, sys
 
 ROOT = pathlib.Path(__file__).parent
 SRC = ROOT / "src"
-JS_FILES = ["sprites.js", "rat.js", "furniture.js", "pet.js", "sfx.js", "scene.js", "ui.js", "games.js", "main.js"]
+JS_FILES = ["sprites.js", "rat.js", "furniture.js", "pet.js", "sfx.js", "scene.js", "ui.js", "games.js", "games2.js", "main.js"]
 
 css = (SRC / "style.css").read_text(encoding="utf-8")
 markup = (SRC / "markup.html").read_text(encoding="utf-8")

@@ -45,8 +45,9 @@ const SFX = (() => {
     const s = seqs[name]; if (!s) return;
     for (const [f, d, w] of s) tone(f, d, w || 0);
   }
+  function note(f, dur, vol, type){ ensure(); tone(f, dur || 0.15, 0, vol || 0.06, type || 'square'); }
   return {
-    play, ensure,
+    play, ensure, note,
     set on(v){ enabled = !!v; },
     get on(){ return enabled; }
   };

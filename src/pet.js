@@ -5,7 +5,15 @@ const FOODS = {
   biscoito:{name:'Biscoito', price:5,  hunger:20, fun:8,  w:4,  desc:'Crocante. Ele adora.'},
   morango: {name:'Morango',  price:6,  hunger:20, fun:5,  w:2,  hygiene:3, desc:'Doce e fresquinho.'},
   bolo:    {name:'Bolo',     price:12, hunger:45, fun:20, w:8,  desc:'Festa! Mas engorda.'},
-  sopa:    {name:'Sopa',     price:8,  hunger:25, fun:0,  w:2,  energy:15, desc:'Quentinha. Dá energia.'}
+  sopa:    {name:'Sopa',     price:8,  hunger:25, fun:0,  w:2,  energy:15, desc:'Quentinha. Dá energia.'},
+  pao:     {name:'Pãozinho', price:3,  hunger:22, fun:2,  w:3,  desc:'Casquinha crocante.'},
+  cenoura: {name:'Cenoura',  price:3,  hunger:15, fun:0,  w:1,  hygiene:2, desc:'Saudável. Ele faz careta.'},
+  uva:     {name:'Uvas',     price:5,  hunger:15, fun:6,  w:1,  desc:'Docinhas e pequenas.'},
+  pipoca:  {name:'Pipoca',   price:4,  hunger:18, fun:8,  w:3,  desc:'Pra ver TV.'},
+  leite:   {name:'Leite',    price:4,  hunger:15, fun:0,  w:2,  energy:8, desc:'Um copinho antes de dormir.'},
+  pizza:   {name:'Pizza',    price:10, hunger:40, fun:15, w:7,  desc:'Fatia de queijo. Óbvio.'},
+  brigadeiro:{name:'Brigadeiro', price:6, hunger:10, fun:18, w:5, desc:'Festa brasileira. Engorda.'},
+  sorvete: {name:'Sorvete',  price:7,  hunger:12, fun:16, w:4,  desc:'Geladinho de morango.'}
 };
 const SAVE_KEY = 'ratinho-virtual.save.v1';
 const HOUR = 3600000;

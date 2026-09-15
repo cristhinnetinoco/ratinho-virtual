@@ -231,7 +231,8 @@ const UI = (() => {
         list += '<h3>' + esc(room.name) + ' · móveis</h3>';
         list += room.slots.map(key => {
           const f = FURN[key], up = hasUpgrade(key), t1 = f.tiers[1];
-          return row(up ? 'none' : 'buy', up ? key : 'furn:' + key, sprImg(t1.spr), t1.name, up ? 'na ' + room.name.toLowerCase() : t1.price + '', up ? 'owned' : '');
+          const icon = '<img class="ico" alt="" src="' + furnIconURL(t1.draw, t1.w, t1.h) + '">';
+          return row(up ? 'none' : 'buy', up ? key : 'furn:' + key, icon, t1.name, up ? 'na ' + room.name.toLowerCase() : t1.price + '', up ? 'owned' : '');
         }).join('');
         list += '<h3>' + esc(room.name) + ' · decoração</h3>';
         list += Object.keys(DECOR).filter(k => DECOR[k].room === room.id).map(k => {

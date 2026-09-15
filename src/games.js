@@ -140,7 +140,7 @@ const GAMES = (() => {
 
   /* ---------- 3. Chuva de Comida ---------- */
   function Chuva(){
-    const GOOD = [['queijo', 3], ['biscoito', 2], ['semente', 1], ['morango', 2], ['bolo', 4]];
+    const GOOD = [['queijo', 3], ['biscoito', 2], ['semente', 1], ['morango', 2], ['bolo', 4], ['pizza', 4], ['uva', 2], ['pao', 2], ['brigadeiro', 3]];
     const BAD = ['meia', 'sabonete'];
     const FY = H - 40;
     let x = W / 2, tx = W / 2, lives = 3, score = 0, items = [], spawn = 0, gap = 900, over = false, t = 0, flash = 0;
@@ -309,6 +309,7 @@ const GAMES = (() => {
 
   const makers = {pulo:Pulo, corrida:Corrida, chuva:Chuva, memoria:Memoria, labirinto:Labirinto};
   let endTimer = 0;
+  function register(def, maker){ list.push(def); makers[def.id] = maker; }
 
   function begin(){
     inp.down = false; inp.tap = false; inp.swipe = null; inp.btn = null;
@@ -344,12 +345,12 @@ const GAMES = (() => {
     if (type === 'down'){ inp.down = true; inp.x = x; inp.y = y; inp.sx = x; inp.sy = y; inp.tap = true; }
     else if (type === 'move'){ inp.x = x; inp.y = y; }
     else {
-      inp.down = false;
+      inp.down = false; inp.x = x; inp.y = y;
       const dx = x - inp.sx, dy = y - inp.sy;
       if (Math.abs(dx) > 14 || Math.abs(dy) > 14) inp.swipe = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'e' : 'w') : (dy > 0 ? 's' : 'n');
     }
   }
   function button(k){ if (!cur) return false; inp.btn = k; return true; }
   function quit(){ cur = null; UI.clearGameUI(); }
-  return {list, start, active, update, draw, pointer, button, quit};
+  return {list, start, active, update, draw, pointer, button, quit, register, inp, F, ratOpts};
 })();

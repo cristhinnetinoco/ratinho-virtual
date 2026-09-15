@@ -32,9 +32,9 @@ function iconRect(i){
 }
 function slotX(key){ return Math.round(FURN[key].x * W); }
 function furnBottom(){ return LAY.floorY + 10; }
-function bedSpot(){ return {x:slotX('cama') + 13, y:LAY.floorY + 7}; }
-function tableSpot(){ return {x:slotX('mesa') + 12, y:LAY.floorY + 26}; }
-function tubSpot(){ return {x:slotX('banheira') + 13, y:LAY.floorY + 6}; }
+function bedSpot(){ const d = furnDef('cama'); return {x:slotX('cama') + d.sleep.dx, y:furnBottom() - d.h + d.sleep.dy}; }
+function tableSpot(){ const d = furnDef('mesa'); return {x:slotX('mesa') + Math.round(d.w / 2) - 6, y:furnBottom() + 16}; }
+function tubSpot(){ const d = furnDef('banheira'); return {x:slotX('banheira') + Math.round(d.w / 2), y:furnBottom() - Math.round(d.h * 0.35)}; }
 function poopSpot(i){
   const rooms = [0, 2, 1], xs = [0.3, 0.55, 0.75], ys = [0.35, 0.7, 0.5];
   return {room:rooms[i % 3], x:Math.round(xs[i % 3] * W), y:Math.round(LAY.walkTop + ys[i % 3] * (LAY.walkBottom - LAY.walkTop))};
@@ -71,7 +71,7 @@ function drawRoomBg(ctx, r, night){
     for (let y = fy + 4; y < bottom; y += 10) rect(ctx, 0, y, W, 1, night ? '#4d3f31' : '#b8834c');
     for (let x = 0; x < W + 28; x += 28) rect(ctx, x + ((Math.floor(x / 28) % 2) ? 14 : 0) - 14, fy + 4, 1, bottom - fy - 4, night ? '#4d3f31' : '#b8834c');
     /* buraco da toca (entrada) */
-    const hx = W - 14, hy = fy - 7;
+    const hx = W - 9, hy = fy - 7;
     fillEllipse(ctx, hx, hy, 11, 15, PAL.k);
     fillEllipse(ctx, hx, hy + 1, 9, 13, night ? '#1a1430' : '#2a2140');
     rect(ctx, hx - 12, hy + 1, 24, 20, base);
@@ -116,16 +116,15 @@ function drawRoomItems(ctx, r, night){
     drawSpr(ctx, d.spr || k, Math.round(d.x * W), LAY.top + d.y);
   }
   for (const key of room.slots){
-    const spr = furnSprite(key), c = spriteCanvas(spr); if (!c) continue;
-    const x = slotX(key), y = fb - c.height;
-    drawSpr(ctx, spr, x, y);
-    if (key === 'luminaria' && night && !S.sleeping){ ctx.save(); ctx.globalAlpha = 0.25; fillEllipse(ctx, x + c.width / 2, fb + 2, hasUpgrade('luminaria') ? 22 : 14, 8, '#ffd23f'); ctx.restore(); }
-    if (key === 'fogao' && Math.floor(performance.now() / 300) % 2 && !hasUpgrade('fogao')) px(ctx, x + 7, y, PAL.o);
+    const d = furnDef(key), x = slotX(key), y = fb - d.h;
+    drawFurn(ctx, d.draw, x, y, d.w, d.h, night);
+    if (key === 'luminaria' && night && !S.sleeping){ ctx.save(); ctx.globalAlpha = 0.25; fillEllipse(ctx, x + d.w / 2, fb + 2, hasUpgrade('luminaria') ? 24 : 16, 8, '#ffd23f'); ctx.restore(); }
   }
   for (const k of S.decor){
-    const d = DECOR[k]; if (!d || d.room !== room.id || !d.floor) continue;
+    const d = DECOR[k]; if (!d || d.room !== room.id || !(d.floor || d.onTub)) continue;
     const spr = d.spr || k, c = spriteCanvas(spr); if (!c) continue;
-    drawSpr(ctx, spr, Math.round(d.x * W), fb - c.height + (d.dy || 0));
+    if (d.onTub){ const t = furnDef('banheira'); drawSpr(ctx, spr, slotX('banheira') + 5, fb - t.h - c.height + 4); }
+    else drawSpr(ctx, spr, Math.round(d.x * W) - Math.round(c.width / 2), LAY.floorY + Math.round(LAY.floorH * 0.62) - c.height);
   }
 }
 function drawIcons(ctx){
