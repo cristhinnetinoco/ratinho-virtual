@@ -1406,6 +1406,47 @@ FDRAW.roda = function(ctx, x, y, w, h){
   drawWheelFront(ctx, cx, cy, r, 0.3);
   box(ctx, cx - 8, y + h - 5, 17, 5, PAL.N, K);
 };
+/* ---- decoracoes de parede (desenhadas por codigo) ---- */
+FDRAW.poster = function(ctx, x, y, w, h){
+  box(ctx, x, y, w, h, PAL.w, K);
+  rect(ctx, x + 2, y + 2, w - 4, h - 4, '#fff6e0'); rect(ctx, x + 2, y + 2, w - 4, 1, '#e3dff0'); rect(ctx, x + 2, y + 2, 1, h - 4, '#e3dff0');
+  const c = spriteCanvas('queijo'); if (c){ ctx.drawImage(c, x + Math.floor((w - 16) / 2), y + 5, 16, 16); }
+  rect(ctx, x + 3, y + h - 7, w - 6, 4, PAL.r);
+  for (let i = x + 5; i < x + w - 5; i += 3) rect(ctx, i, y + h - 6, 2, 2, PAL.w);
+  px(ctx, x + 1, y + 1, PAL.b); px(ctx, x + w - 2, y + 1, PAL.b); px(ctx, x + 1, y + h - 2, PAL.b); px(ctx, x + w - 2, y + h - 2, PAL.b);
+};
+FDRAW.quadro = function(ctx, x, y, w, h){
+  box(ctx, x, y, w, h, PAL.N, K); rect(ctx, x + 1, y + 1, w - 2, 1, '#d19a63'); rect(ctx, x + 1, y + 1, 1, h - 2, '#d19a63');
+  rect(ctx, x + 3, y + 3, w - 6, h - 6, PAL.b);
+  fillEllipse(ctx, x + w - 8, y + 7, 3, 3, PAL.y);
+  fillEllipse(ctx, x + 8, y + h - 5, 8, 4, PAL.e); fillEllipse(ctx, x + w - 9, y + h - 4, 9, 4, PAL.E);
+  rect(ctx, x + 3, y + h - 5, w - 6, 2, PAL.E);
+  px(ctx, x + 6, y + 6, PAL.w); px(ctx, x + 7, y + 6, PAL.w); px(ctx, x + 12, y + 8, PAL.w);
+};
+FDRAW.relogio = function(ctx, x, y, w, h){
+  const r = Math.floor(Math.min(w, h) / 2) - 1, cx = x + r + 1, cy = y + r + 1;
+  oEllipse(ctx, cx, cy, r, r, PAL.w, K); ringRows(ctx, cx, cy, r, r - 1, PAL.n);
+  px(ctx, cx, cy - r + 2, K); px(ctx, cx, cy + r - 2, K); px(ctx, cx - r + 2, cy, K); px(ctx, cx + r - 2, cy, K);
+  const d = new Date(), hm = (d.getHours() % 12) / 12 * Math.PI * 2 + d.getMinutes() / 60 * Math.PI / 6, mm = d.getMinutes() / 60 * Math.PI * 2;
+  const hand = (a, len, col) => { for (let s = 0; s <= len; s++) px(ctx, cx + Math.sin(a) * s, cy - Math.cos(a) * s, col); };
+  hand(hm, r - 4, K); hand(mm, r - 2, PAL.r); px(ctx, cx, cy, K);
+};
+FDRAW.prateleira = function(ctx, x, y, w, h){
+  const jars = [[PAL.y, PAL.Y], [PAL.p, PAL.P], [PAL.e, PAL.E]];
+  const jw = 7, gap = Math.floor((w - 2 - jars.length * jw) / (jars.length + 1));
+  jars.forEach((c, i) => {
+    const jx = x + 1 + gap + i * (jw + gap), jy = y;
+    rect(ctx, jx + 1, jy, jw - 2, 2, K);
+    box(ctx, jx, jy + 2, jw, h - 6, c[0], K); rect(ctx, jx + 1, jy + 4, 1, h - 9, '#fffaf0'); rect(ctx, jx + 2, jy + h - 6, jw - 4, 1, c[1]);
+  });
+  box(ctx, x, y + h - 4, w, 4, PAL.n, K); rect(ctx, x + 1, y + h - 2, w - 2, 1, PAL.N);
+};
+FDRAW.toalha = function(ctx, x, y, w, h){
+  rect(ctx, x + Math.floor(w / 2) - 1, y, 3, 3, PAL.G); px(ctx, x + Math.floor(w / 2), y + 1, K);
+  box(ctx, x, y + 3, w, h - 3, PAL.p, K);
+  for (let yy = y + 6; yy < y + h - 2; yy += 4) rect(ctx, x + 1, yy, w - 2, 1, PAL.w);
+  rect(ctx, x + 1, y + h - 3, w - 2, 1, PAL.P); rect(ctx, x + Math.floor(w / 2), y + 4, 1, h - 6, PAL.P);
+};
 function drawFurn(ctx, name, x, y, w, h, night){ const f = FDRAW[name]; if (f) f(ctx, x, y, w, h, night); }
 const _furnIcons = new Map();
 function furnIconURL(name, w, h){
@@ -1447,21 +1488,21 @@ const FURN = {
 /* Decoracoes: wall = na parede (y a partir do topo da parede); floor = no meio do chao; onTub = em cima da banheira. */
 const DECOR = {
   tapete:         {room:'sala',     name:'Tapete de retalho',    price:25, kind:'rug'},
-  poster:         {room:'sala',     name:'Pôster de queijo',     price:35, wall:true, x:0.06, y:8},
-  quadro:         {room:'sala',     name:'Quadro pintado',       price:45, wall:true, x:0.70, y:12},
+  poster:         {room:'sala',     name:'Pôster de queijo',     price:35, wall:true, x:0.08, y:18, draw:'poster', w:24, h:30},
+  quadro:         {room:'sala',     name:'Quadro pintado',       price:45, wall:true, x:0.62, y:22, draw:'quadro', w:26, h:20},
   planta:         {room:'sala',     name:'Planta no dedal',      price:30, x:0.90, floor:true},
   tv:             {room:'sala',     name:'TV miniatura',         price:120, x:0.06, floor:true, spr:'tv_mini'},
   roda:           {room:'sala',     name:'Rodinha de correr',    price:70, x:0.74, floor:true, draw:'roda', w:32, h:36, desc:'Toque nela para o rato entrar e correr pela sala.'},
   papel_listras:  {room:'sala',     name:'Papel listrado',       price:60, kind:'paper'},
   papel_bolinhas: {room:'sala',     name:'Papel de bolinhas',    price:60, kind:'paper'},
   papel_coracoes: {room:'sala',     name:'Papel de corações',    price:80, kind:'paper'},
-  relogio:        {room:'cozinha',  name:'Relógio de parede',    price:30, wall:true, x:0.82, y:6},
-  prateleira:     {room:'cozinha',  name:'Prateleira de potes',  price:50, wall:true, x:0.20, y:14},
+  relogio:        {room:'cozinha',  name:'Relógio de parede',    price:30, wall:true, x:0.84, y:10, draw:'relogio', w:16, h:16},
+  prateleira:     {room:'cozinha',  name:'Prateleira de potes',  price:50, wall:true, x:0.06, y:26, draw:'prateleira', w:32, h:14},
   planta2:        {room:'cozinha',  name:'Plantinha na cozinha', price:30, x:0.90, floor:true, spr:'planta'},
   patinho:        {room:'banheiro', name:'Patinho de borracha',  price:20, onTub:true},
-  toalha:         {room:'banheiro', name:'Toalha no gancho',     price:25, wall:true, x:0.72, y:12},
+  toalha:         {room:'banheiro', name:'Toalha no gancho',     price:25, wall:true, x:0.70, y:44, draw:'toalha', w:12, h:20},
   tapete_banho:   {room:'banheiro', name:'Tapetinho do banho',   price:25, kind:'rug'},
-  quadro2:        {room:'banheiro', name:'Quadro do mar',        price:45, wall:true, x:0.38, y:8, spr:'quadro'}
+  quadro2:        {room:'banheiro', name:'Quadro do mar',        price:45, wall:true, x:0.30, y:22, draw:'quadro', w:26, h:20}
 };
 function furnTier(key){ return (S.furn && S.furn[key]) || 0; }
 function furnDef(key){ return FURN[key].tiers[furnTier(key)]; }
@@ -1909,7 +1950,8 @@ function drawRoomItems(ctx, r, night){
   const room = ROOMS[r], fb = furnBottom();
   for (const k of S.decor){
     const d = DECOR[k]; if (!d || d.room !== room.id || !d.wall) continue;
-    drawSpr(ctx, d.spr || k, Math.round(d.x * W), LAY.top + d.y);
+    if (d.draw) drawFurn(ctx, d.draw, Math.round(d.x * W), LAY.top + d.y, d.w, d.h, night);
+    else drawSpr(ctx, d.spr || k, Math.round(d.x * W), LAY.top + d.y);
   }
   for (const key of room.slots){
     const d = furnDef(key), x = slotX(key), y = fb - d.h;
@@ -2521,16 +2563,18 @@ const GAMES = (() => {
 
   /* ---------- 1. Pulo Espacial ---------- */
   function Pulo(){
-    const rat = {x:W / 2, y:H - 30, vy:-6.1}, plats = [], cheese = [];
+    const rat = {x:W / 2, y:H - 30, vy:-6.1, vx:0}, plats = [], cheese = [];
     let cam = 0, score = 0, bonus = 0, over = false, hold = 0, holdDir = 0, space = false, topY = H - 20;
     const stars = []; for (let i = 0; i < 70; i++) stars.push([Math.random() * W, Math.random() * 1400, Math.random() < 0.3 ? 2 : 1]);
     const clouds = []; for (let i = 0; i < 14; i++) clouds.push([Math.random() * (W - 16), Math.random() * 900]);
     const SKY = [[0, '#f1d7c2'], [250, '#bfe6ff'], [700, '#9ad4f5'], [1100, '#7a5fa8'], [1500, '#3a2a5a'], [2000, '#1b1233'], [2600, '#0b0716']];
     function gen(){
       while (topY > cam - H){
-        topY -= 22 + Math.random() * 20;
-        const w = 28, r = Math.random();
-        plats.push({x:4 + Math.random() * (W - 8 - w), y:topY, w, type:r < 0.12 ? 'move' : r < 0.18 ? 'spring' : 'norm', dx:Math.random() < 0.5 ? -1 : 1});
+        const height = Math.max(0, -topY);
+        topY -= 20 + Math.random() * 16 + Math.min(16, height / 200);
+        const w = Math.max(20, 30 - Math.floor(height / 400)), r = Math.random();
+        const pMove = 0.1 + Math.min(0.25, height / 5000);
+        plats.push({x:4 + Math.random() * (W - 8 - w), y:topY, w, type:r < pMove ? 'move' : r < pMove + 0.06 ? 'spring' : 'norm', dx:Math.random() < 0.5 ? -1 : 1});
         if (Math.random() < 0.2) cheese.push({x:8 + Math.random() * (W - 16), y:topY - 16, got:false});
       }
     }
@@ -2546,7 +2590,10 @@ const GAMES = (() => {
         if (inp.btn === 'A'){ hold = 220; holdDir = -1; } else if (inp.btn === 'C'){ hold = 220; holdDir = 1; }
         inp.btn = null;
         if (hold > 0){ mx = holdDir; hold -= dt; }
-        rat.x += mx * 2.4 * f;
+        rat.vx += mx * 0.5 * f;
+        rat.vx *= Math.pow(0.86, f);
+        rat.vx = Math.max(-3.2, Math.min(3.2, rat.vx));
+        rat.x += rat.vx * f;
         if (rat.x < -6) rat.x = W + 6; if (rat.x > W + 6) rat.x = -6;
         rat.vy += 0.26 * f;
         const py = rat.y; rat.y += rat.vy * f;
@@ -2593,7 +2640,8 @@ const GAMES = (() => {
           if (p.type === 'spring') drawSpr(ctx, 'mola', p.x + p.w / 2 - 4, y - 5);
         }
         for (const c of cheese) if (!c.got) drawSpr(ctx, 'queijo', c.x - 4, c.y - cam - 4);
-        drawRat(ctx, rat.x, rat.y - cam, ratOpts(rat.vy < 0 ? 'happy' : 'wow'));
+        const ro = ratOpts(rat.vy < 0 ? 'happy' : 'wow'); ro.flip = rat.vx < -0.3;
+        drawRat(ctx, rat.x, rat.y - cam, ro);
       },
       over:() => over,
       result(){ return {score, coins:Math.min(45, Math.floor(score / 6) + (space ? 10 : 0))}; }
@@ -2603,14 +2651,15 @@ const GAMES = (() => {
   /* ---------- 2. Corrida na Cozinha ---------- */
   function Corrida(){
     const GY = H - 52, RX = Math.round(W * 0.3);
-    const rat = {y:GY, vy:0, ground:true};
-    let speed = 2.0, dist = 0, over = false, nextObs = 60, obs = [], cheese = [], score = 0, wob = 0;
+    const rat = {y:GY, vy:0, ground:true, holdT:0};
+    let speed = 2.0, dist = 0, over = false, nextObs = 70, obs = [], cheese = [], score = 0, wob = 0;
     return {
       update(dt){
         if (over) return;
         const f = F(dt);
-        if ((inp.tap || inp.btn) && rat.ground){ rat.vy = -5.8; rat.ground = false; SFX.play('jump'); }
+        if ((inp.tap || inp.btn) && rat.ground){ rat.vy = -5.0; rat.ground = false; rat.holdT = 0; SFX.play('jump'); }
         inp.tap = false; inp.btn = null;
+        if (!rat.ground && inp.down && rat.vy < 0 && rat.holdT < 200){ rat.vy -= 0.14 * f; rat.holdT += dt; }
         rat.vy += 0.3 * f; rat.y += rat.vy * f;
         if (rat.y >= GY){ rat.y = GY; rat.vy = 0; rat.ground = true; }
         speed += 0.00025 * dt;
@@ -2673,7 +2722,7 @@ const GAMES = (() => {
         }
         for (const it of items){
           it.y += it.vy * F(dt);
-          if (!it.hit && it.y > FY - 22 && it.y < FY - 2 && Math.abs(it.x - x) < 11){
+          if (!it.hit && it.y > FY - 24 && it.y < FY - 2 && Math.abs(it.x - x) < 13){
             it.hit = true;
             if (it.bad){ lives--; flash = 400; SFX.play('hit'); if (lives <= 0) over = true; }
             else { score += it.val; SFX.play('coin'); }
@@ -2971,8 +3020,8 @@ const GAMES = (() => {
     function hitLane(l){
       let bestN = null, bd = 1e9;
       for (const n of notes){ if (n.done || n.missed || n.lane !== l) continue; const d = Math.abs(n.t - t); if (d < bd){ bd = d; bestN = n; } }
-      if (bestN && bd <= 170){
-        bestN.done = true; const p = bd <= 80; score += p ? 3 : 1; combo++;
+      if (bestN && bd <= 200){
+        bestN.done = true; const p = bd <= 90; score += p ? 3 : 1; combo++;
         fb = p ? 'PERFEITO' : 'BOM'; fbT = 350; SFX.note(freqs[l], 0.16); lastLane = l; flash = 200;
       } else { combo = 0; fb = 'ERROU'; fbT = 350; SFX.play('no'); }
     }
@@ -2988,7 +3037,7 @@ const GAMES = (() => {
         }
         if (inp.tap){ inp.tap = false; hitLane(Math.min(2, Math.floor(inp.sx / (W / 3)))); }
         if (inp.btn){ hitLane({A:0, B:1, C:2}[inp.btn] || 0); inp.btn = null; }
-        for (const n of notes){ if (!n.done && !n.missed && t - n.t > 170){ n.missed = true; misses++; combo = 0; fb = 'PERDEU'; fbT = 300; } }
+        for (const n of notes){ if (!n.done && !n.missed && t - n.t > 200){ n.missed = true; misses++; combo = 0; fb = 'PERDEU'; fbT = 300; } }
         notes = notes.filter(n => t - n.t < 600);
         if (misses >= MAXMISS){ over = true; SFX.play('sad'); }
         UI.hud('PTS ' + score, 'VIDAS ' + (MAXMISS - misses), true);
@@ -3228,13 +3277,30 @@ const GAMES = (() => {
 
   /* ---------- Basquete de papel (3 erros) ---------- */
   function Basquete(){
-    const FY = H - 30, start = {x:24, y:FY - 22}, MAXMISS = 3;
-    let score = 0, misses = 0, over = false, ball = null, wind = 0, bin = {x:0, y:0, w:20, h:18}, from = null, msg = '', msgT = 0;
+    const FY = H - 30, start = {x:24, y:FY - 24}, MAXMISS = 3, G = 0.16;
+    let score = 0, misses = 0, over = false, ball = null, wind = 0, bin = {x:0, y:0, w:20, h:18}, from = null, msg = '', msgT = 0, streak = 0;
     function newRound(){
-      const wmax = Math.min(0.16, 0.06 + score * 0.008);
-      wind = (Math.random() - 0.5) * 2 * wmax;
-      bin.w = Math.max(13, 20 - Math.floor(score / 3));
-      bin.x = Math.round(W * 0.42 + Math.random() * (W * 0.54 - bin.w)); bin.y = Math.round(H * 0.22 + Math.random() * H * 0.22);
+      const wmax = Math.min(0.14, 0.03 + score * 0.008);
+      wind = score === 0 ? 0 : (Math.random() - 0.5) * 2 * wmax;
+      bin.w = Math.max(14, 22 - Math.floor(score / 3));
+      bin.x = Math.round(W * 0.40 + Math.random() * (W * 0.56 - bin.w)); bin.y = Math.round(H * 0.20 + Math.random() * H * 0.26);
+    }
+    function throwVel(dx, dy){
+      const len = Math.hypot(dx, dy);
+      if (len < 6) return null;
+      const power = Math.min(1.3, 0.5 + len / 48);
+      const sp = 8.6 * power;
+      return {vx:dx / len * sp, vy:dy / len * sp};
+    }
+    function preview(v){
+      const pts = []; let x = start.x, y = start.y, vx = v.vx, vy = v.vy;
+      for (let i = 0; i < 44; i++){
+        vy += G; vx += wind; x += vx; y += vy;
+        if (x < 4 || x > W - 4) vx *= -0.6;
+        if (i % 3 === 2) pts.push([x, y]);
+        if (y > FY) break;
+      }
+      return pts;
     }
     newRound();
     return {
@@ -3244,48 +3310,70 @@ const GAMES = (() => {
         if (!ball){
           if (inp.down && !from) from = {x:inp.sx, y:inp.sy};
           if (from && !inp.down){
-            const dx = inp.x - from.x, dy = inp.y - from.y; from = null;
-            if (Math.hypot(dx, dy) > 12 && dy < 0){
-              ball = {x:start.x, y:start.y, vx:Math.max(-6, Math.min(6, dx * 0.09)), vy:Math.max(-9, dy * 0.09), life:0, scored:false};
-              SFX.play('jump');
-            }
+            const v = throwVel(inp.x - from.x, inp.y - from.y); from = null;
+            if (v && v.vy < -1){ ball = {x:start.x, y:start.y, vx:v.vx, vy:v.vy, life:0, scored:false}; SFX.play('jump'); }
           }
           inp.tap = false; inp.btn = null;
         } else {
-          ball.vy += 0.16 * f; ball.vx += wind * f; ball.x += ball.vx * f; ball.y += ball.vy * f; ball.life += dt;
+          const px0 = ball.x, py0 = ball.y;
+          ball.vy += G * f; ball.vx += wind * f; ball.x += ball.vx * f; ball.y += ball.vy * f; ball.life += dt;
           if (ball.x < 4){ ball.x = 4; ball.vx *= -0.6; }
           if (ball.x > W - 4){ ball.x = W - 4; ball.vx *= -0.6; }
           if (ball.y < 2){ ball.y = 2; ball.vy *= -0.5; }
-          if (!ball.scored && ball.vy > 0 && ball.y > bin.y && ball.y < bin.y + 6 && ball.x > bin.x + 3 && ball.x < bin.x + bin.w - 3){
-            ball.scored = true; score++; SFX.play('coin'); msg = 'CESTA!'; msgT = 800;
+          if (!ball.scored){
+            /* boca da lixeira */
+            if (ball.vy > 0 && py0 <= bin.y + 2 && ball.y > bin.y + 2 && ball.x > bin.x + 2 && ball.x < bin.x + bin.w - 2){
+              ball.scored = true; score++; streak++; SFX.play('coin'); msg = streak >= 3 ? 'CESTA! x' + streak : 'CESTA!'; msgT = 800;
+            }
+            /* borda */
+            else if (ball.vy > 0 && py0 <= bin.y + 2 && ball.y > bin.y - 1 && (Math.abs(ball.x - bin.x) <= 3 || Math.abs(ball.x - bin.x - bin.w) <= 3)){
+              ball.y = bin.y - 3; ball.vy *= -0.45; ball.vx += (ball.x < bin.x + bin.w / 2 ? -0.8 : 0.8); SFX.play('flip');
+            }
+            /* paredes da lixeira (por fora) */
+            else if (ball.y > bin.y + 2 && ball.y < bin.y + bin.h){
+              if (px0 + 3 <= bin.x && ball.x + 3 > bin.x){ ball.x = bin.x - 3; ball.vx *= -0.5; }
+              else if (px0 - 3 >= bin.x + bin.w && ball.x - 3 < bin.x + bin.w){ ball.x = bin.x + bin.w + 3; ball.vx *= -0.5; }
+            }
+          } else {
+            ball.x = Math.max(bin.x + 4, Math.min(bin.x + bin.w - 4, ball.x)); ball.vx *= 0.8;
           }
-          if (!ball.scored && ball.vy > 0 && ball.y > bin.y - 2 && ball.y < bin.y + 3 && (Math.abs(ball.x - bin.x) < 3 || Math.abs(ball.x - bin.x - bin.w) < 3)){ ball.vy *= -0.4; ball.vx *= 0.6; }
-          if (ball.y > H + 10 || ball.life > 4500 || (ball.scored && ball.y > bin.y + bin.h - 4)){
-            if (!ball.scored){ misses++; msg = 'ERROU'; msgT = 700; SFX.play('no'); }
+          if (ball.y > H + 10 || ball.life > 5000 || (ball.scored && ball.y > bin.y + bin.h - 5)){
+            if (!ball.scored){ misses++; streak = 0; msg = 'ERROU'; msgT = 700; SFX.play('no'); }
             ball = null; newRound();
             if (misses >= MAXMISS){ over = true; SFX.play(score > 0 ? 'win' : 'sad'); }
           }
         }
         UI.hud('CESTAS ' + score, 'ERROS ' + misses + '/' + MAXMISS);
-        UI.hint(msgT > 0 ? msg : (!ball && !over ? 'DESLIZE PARA ARREMESSAR' : ''));
+        UI.hint(msgT > 0 ? msg : (!ball && !over ? (from ? '' : 'DESLIZE PARA ARREMESSAR') : ''));
       },
       draw(ctx){
         rect(ctx, 0, 0, W, H, '#f1d7c2');
         for (let y = 6; y < FY; y += 10) for (let x = (Math.floor(y / 10) % 2) ? 5 : 0; x < W; x += 10) px(ctx, x + 2, y, '#e8c3ab');
         rect(ctx, 0, FY - 4, W, 4, '#d9b98a'); rect(ctx, 0, FY, W, H - FY, '#c8945c');
+        /* ventilador e vento */
         box(ctx, 6, 8, 16, 16, PAL.g, PAL.k); oEllipse(ctx, 14, 16, 4, 4, PAL.G, PAL.k);
-        const wl = Math.round(wind * 260), ax = 30, ay = 16;
-        rect(ctx, wl < 0 ? ax + wl : ax, ay, Math.abs(wl) + 1, 2, PAL.b);
-        if (wl > 0){ px(ctx, ax + wl + 1, ay - 1, PAL.b); px(ctx, ax + wl + 1, ay + 2, PAL.b); }
-        if (wl < 0){ px(ctx, ax + wl - 1, ay - 1, PAL.b); px(ctx, ax + wl - 1, ay + 2, PAL.b); }
+        const spin = Math.floor(performance.now() / (wind === 0 ? 400 : 120)) % 2;
+        rect(ctx, 12 + spin, 15, 4 - spin * 2, 2, PAL.g);
+        const wl = Math.round(wind * 300), ax = 30, ay = 16;
+        if (wl === 0){ rect(ctx, ax, ay, 8, 2, PAL.G); }
+        else {
+          rect(ctx, wl < 0 ? ax + wl : ax, ay, Math.abs(wl) + 1, 2, PAL.b);
+          if (wl > 0){ px(ctx, ax + wl + 1, ay - 1, PAL.b); px(ctx, ax + wl + 1, ay + 2, PAL.b); px(ctx, ax + wl + 2, ay, PAL.b); px(ctx, ax + wl + 2, ay + 1, PAL.b); }
+          if (wl < 0){ px(ctx, ax + wl - 1, ay - 1, PAL.b); px(ctx, ax + wl - 1, ay + 2, PAL.b); px(ctx, ax + wl - 2, ay, PAL.b); px(ctx, ax + wl - 2, ay + 1, PAL.b); }
+        }
+        /* lixeira */
         box(ctx, bin.x, bin.y, bin.w, bin.h, '#c9c3d6', PAL.k);
         rect(ctx, bin.x - 1, bin.y, bin.w + 2, 3, PAL.G); rect(ctx, bin.x - 1, bin.y, bin.w + 2, 1, PAL.k);
         for (let i = bin.x + 3; i < bin.x + bin.w - 2; i += 4) rect(ctx, i, bin.y + 5, 1, bin.h - 8, PAL.G);
-        if (from && inp.down){
-          const dx = inp.x - from.x, dy = inp.y - from.y;
-          for (let i = 1; i <= 5; i++) px(ctx, start.x + dx * 0.25 * i, start.y + dy * 0.25 * i, PAL.k);
+        /* mira com trajetoria */
+        if (from && inp.down && !ball){
+          const v = throwVel(inp.x - from.x, inp.y - from.y);
+          if (v && v.vy < -1){
+            const pts = preview(v);
+            pts.forEach((p, i) => { if (p[1] < FY) fillEllipse(ctx, p[0], p[1], 1, 1, i % 2 ? PAL.k : PAL.w); });
+          }
         }
-        drawRat(ctx, start.x, FY - 2, ratOpts(msgT > 0 ? (msg === 'CESTA!' ? 'happy' : 'sad') : over ? (score > 3 ? 'happy' : 'sad') : 'normal'));
+        drawRat(ctx, start.x, FY - 2, ratOpts(msgT > 0 ? (msg.indexOf('CESTA') === 0 ? 'happy' : 'sad') : over ? (score > 3 ? 'happy' : 'sad') : 'normal'));
         if (ball) drawSpr(ctx, 'papel', ball.x - 3, ball.y - 3);
         else if (!over) drawSpr(ctx, 'papel', start.x - 3, start.y - 3);
       },

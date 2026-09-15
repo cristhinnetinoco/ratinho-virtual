@@ -256,6 +256,47 @@ FDRAW.roda = function(ctx, x, y, w, h){
   drawWheelFront(ctx, cx, cy, r, 0.3);
   box(ctx, cx - 8, y + h - 5, 17, 5, PAL.N, K);
 };
+/* ---- decoracoes de parede (desenhadas por codigo) ---- */
+FDRAW.poster = function(ctx, x, y, w, h){
+  box(ctx, x, y, w, h, PAL.w, K);
+  rect(ctx, x + 2, y + 2, w - 4, h - 4, '#fff6e0'); rect(ctx, x + 2, y + 2, w - 4, 1, '#e3dff0'); rect(ctx, x + 2, y + 2, 1, h - 4, '#e3dff0');
+  const c = spriteCanvas('queijo'); if (c){ ctx.drawImage(c, x + Math.floor((w - 16) / 2), y + 5, 16, 16); }
+  rect(ctx, x + 3, y + h - 7, w - 6, 4, PAL.r);
+  for (let i = x + 5; i < x + w - 5; i += 3) rect(ctx, i, y + h - 6, 2, 2, PAL.w);
+  px(ctx, x + 1, y + 1, PAL.b); px(ctx, x + w - 2, y + 1, PAL.b); px(ctx, x + 1, y + h - 2, PAL.b); px(ctx, x + w - 2, y + h - 2, PAL.b);
+};
+FDRAW.quadro = function(ctx, x, y, w, h){
+  box(ctx, x, y, w, h, PAL.N, K); rect(ctx, x + 1, y + 1, w - 2, 1, '#d19a63'); rect(ctx, x + 1, y + 1, 1, h - 2, '#d19a63');
+  rect(ctx, x + 3, y + 3, w - 6, h - 6, PAL.b);
+  fillEllipse(ctx, x + w - 8, y + 7, 3, 3, PAL.y);
+  fillEllipse(ctx, x + 8, y + h - 5, 8, 4, PAL.e); fillEllipse(ctx, x + w - 9, y + h - 4, 9, 4, PAL.E);
+  rect(ctx, x + 3, y + h - 5, w - 6, 2, PAL.E);
+  px(ctx, x + 6, y + 6, PAL.w); px(ctx, x + 7, y + 6, PAL.w); px(ctx, x + 12, y + 8, PAL.w);
+};
+FDRAW.relogio = function(ctx, x, y, w, h){
+  const r = Math.floor(Math.min(w, h) / 2) - 1, cx = x + r + 1, cy = y + r + 1;
+  oEllipse(ctx, cx, cy, r, r, PAL.w, K); ringRows(ctx, cx, cy, r, r - 1, PAL.n);
+  px(ctx, cx, cy - r + 2, K); px(ctx, cx, cy + r - 2, K); px(ctx, cx - r + 2, cy, K); px(ctx, cx + r - 2, cy, K);
+  const d = new Date(), hm = (d.getHours() % 12) / 12 * Math.PI * 2 + d.getMinutes() / 60 * Math.PI / 6, mm = d.getMinutes() / 60 * Math.PI * 2;
+  const hand = (a, len, col) => { for (let s = 0; s <= len; s++) px(ctx, cx + Math.sin(a) * s, cy - Math.cos(a) * s, col); };
+  hand(hm, r - 4, K); hand(mm, r - 2, PAL.r); px(ctx, cx, cy, K);
+};
+FDRAW.prateleira = function(ctx, x, y, w, h){
+  const jars = [[PAL.y, PAL.Y], [PAL.p, PAL.P], [PAL.e, PAL.E]];
+  const jw = 7, gap = Math.floor((w - 2 - jars.length * jw) / (jars.length + 1));
+  jars.forEach((c, i) => {
+    const jx = x + 1 + gap + i * (jw + gap), jy = y;
+    rect(ctx, jx + 1, jy, jw - 2, 2, K);
+    box(ctx, jx, jy + 2, jw, h - 6, c[0], K); rect(ctx, jx + 1, jy + 4, 1, h - 9, '#fffaf0'); rect(ctx, jx + 2, jy + h - 6, jw - 4, 1, c[1]);
+  });
+  box(ctx, x, y + h - 4, w, 4, PAL.n, K); rect(ctx, x + 1, y + h - 2, w - 2, 1, PAL.N);
+};
+FDRAW.toalha = function(ctx, x, y, w, h){
+  rect(ctx, x + Math.floor(w / 2) - 1, y, 3, 3, PAL.G); px(ctx, x + Math.floor(w / 2), y + 1, K);
+  box(ctx, x, y + 3, w, h - 3, PAL.p, K);
+  for (let yy = y + 6; yy < y + h - 2; yy += 4) rect(ctx, x + 1, yy, w - 2, 1, PAL.w);
+  rect(ctx, x + 1, y + h - 3, w - 2, 1, PAL.P); rect(ctx, x + Math.floor(w / 2), y + 4, 1, h - 6, PAL.P);
+};
 function drawFurn(ctx, name, x, y, w, h, night){ const f = FDRAW[name]; if (f) f(ctx, x, y, w, h, night); }
 const _furnIcons = new Map();
 function furnIconURL(name, w, h){
@@ -297,21 +338,21 @@ const FURN = {
 /* Decoracoes: wall = na parede (y a partir do topo da parede); floor = no meio do chao; onTub = em cima da banheira. */
 const DECOR = {
   tapete:         {room:'sala',     name:'Tapete de retalho',    price:25, kind:'rug'},
-  poster:         {room:'sala',     name:'Pôster de queijo',     price:35, wall:true, x:0.06, y:8},
-  quadro:         {room:'sala',     name:'Quadro pintado',       price:45, wall:true, x:0.70, y:12},
+  poster:         {room:'sala',     name:'Pôster de queijo',     price:35, wall:true, x:0.08, y:18, draw:'poster', w:24, h:30},
+  quadro:         {room:'sala',     name:'Quadro pintado',       price:45, wall:true, x:0.62, y:22, draw:'quadro', w:26, h:20},
   planta:         {room:'sala',     name:'Planta no dedal',      price:30, x:0.90, floor:true},
   tv:             {room:'sala',     name:'TV miniatura',         price:120, x:0.06, floor:true, spr:'tv_mini'},
   roda:           {room:'sala',     name:'Rodinha de correr',    price:70, x:0.74, floor:true, draw:'roda', w:32, h:36, desc:'Toque nela para o rato entrar e correr pela sala.'},
   papel_listras:  {room:'sala',     name:'Papel listrado',       price:60, kind:'paper'},
   papel_bolinhas: {room:'sala',     name:'Papel de bolinhas',    price:60, kind:'paper'},
   papel_coracoes: {room:'sala',     name:'Papel de corações',    price:80, kind:'paper'},
-  relogio:        {room:'cozinha',  name:'Relógio de parede',    price:30, wall:true, x:0.82, y:6},
-  prateleira:     {room:'cozinha',  name:'Prateleira de potes',  price:50, wall:true, x:0.20, y:14},
+  relogio:        {room:'cozinha',  name:'Relógio de parede',    price:30, wall:true, x:0.84, y:10, draw:'relogio', w:16, h:16},
+  prateleira:     {room:'cozinha',  name:'Prateleira de potes',  price:50, wall:true, x:0.06, y:26, draw:'prateleira', w:32, h:14},
   planta2:        {room:'cozinha',  name:'Plantinha na cozinha', price:30, x:0.90, floor:true, spr:'planta'},
   patinho:        {room:'banheiro', name:'Patinho de borracha',  price:20, onTub:true},
-  toalha:         {room:'banheiro', name:'Toalha no gancho',     price:25, wall:true, x:0.72, y:12},
+  toalha:         {room:'banheiro', name:'Toalha no gancho',     price:25, wall:true, x:0.70, y:44, draw:'toalha', w:12, h:20},
   tapete_banho:   {room:'banheiro', name:'Tapetinho do banho',   price:25, kind:'rug'},
-  quadro2:        {room:'banheiro', name:'Quadro do mar',        price:45, wall:true, x:0.38, y:8, spr:'quadro'}
+  quadro2:        {room:'banheiro', name:'Quadro do mar',        price:45, wall:true, x:0.30, y:22, draw:'quadro', w:26, h:20}
 };
 function furnTier(key){ return (S.furn && S.furn[key]) || 0; }
 function furnDef(key){ return FURN[key].tiers[furnTier(key)]; }

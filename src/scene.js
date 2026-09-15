@@ -132,7 +132,8 @@ function drawRoomItems(ctx, r, night){
   const room = ROOMS[r], fb = furnBottom();
   for (const k of S.decor){
     const d = DECOR[k]; if (!d || d.room !== room.id || !d.wall) continue;
-    drawSpr(ctx, d.spr || k, Math.round(d.x * W), LAY.top + d.y);
+    if (d.draw) drawFurn(ctx, d.draw, Math.round(d.x * W), LAY.top + d.y, d.w, d.h, night);
+    else drawSpr(ctx, d.spr || k, Math.round(d.x * W), LAY.top + d.y);
   }
   for (const key of room.slots){
     const d = furnDef(key), x = slotX(key), y = fb - d.h;

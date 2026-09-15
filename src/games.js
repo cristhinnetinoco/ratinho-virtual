@@ -24,16 +24,18 @@ const GAMES = (() => {
 
   /* ---------- 1. Pulo Espacial ---------- */
   function Pulo(){
-    const rat = {x:W / 2, y:H - 30, vy:-6.1}, plats = [], cheese = [];
+    const rat = {x:W / 2, y:H - 30, vy:-6.1, vx:0}, plats = [], cheese = [];
     let cam = 0, score = 0, bonus = 0, over = false, hold = 0, holdDir = 0, space = false, topY = H - 20;
     const stars = []; for (let i = 0; i < 70; i++) stars.push([Math.random() * W, Math.random() * 1400, Math.random() < 0.3 ? 2 : 1]);
     const clouds = []; for (let i = 0; i < 14; i++) clouds.push([Math.random() * (W - 16), Math.random() * 900]);
     const SKY = [[0, '#f1d7c2'], [250, '#bfe6ff'], [700, '#9ad4f5'], [1100, '#7a5fa8'], [1500, '#3a2a5a'], [2000, '#1b1233'], [2600, '#0b0716']];
     function gen(){
       while (topY > cam - H){
-        topY -= 22 + Math.random() * 20;
-        const w = 28, r = Math.random();
-        plats.push({x:4 + Math.random() * (W - 8 - w), y:topY, w, type:r < 0.12 ? 'move' : r < 0.18 ? 'spring' : 'norm', dx:Math.random() < 0.5 ? -1 : 1});
+        const height = Math.max(0, -topY);
+        topY -= 20 + Math.random() * 16 + Math.min(16, height / 200);
+        const w = Math.max(20, 30 - Math.floor(height / 400)), r = Math.random();
+        const pMove = 0.1 + Math.min(0.25, height / 5000);
+        plats.push({x:4 + Math.random() * (W - 8 - w), y:topY, w, type:r < pMove ? 'move' : r < pMove + 0.06 ? 'spring' : 'norm', dx:Math.random() < 0.5 ? -1 : 1});
         if (Math.random() < 0.2) cheese.push({x:8 + Math.random() * (W - 16), y:topY - 16, got:false});
       }
     }
@@ -49,7 +51,10 @@ const GAMES = (() => {
         if (inp.btn === 'A'){ hold = 220; holdDir = -1; } else if (inp.btn === 'C'){ hold = 220; holdDir = 1; }
         inp.btn = null;
         if (hold > 0){ mx = holdDir; hold -= dt; }
-        rat.x += mx * 2.4 * f;
+        rat.vx += mx * 0.5 * f;
+        rat.vx *= Math.pow(0.86, f);
+        rat.vx = Math.max(-3.2, Math.min(3.2, rat.vx));
+        rat.x += rat.vx * f;
         if (rat.x < -6) rat.x = W + 6; if (rat.x > W + 6) rat.x = -6;
         rat.vy += 0.26 * f;
         const py = rat.y; rat.y += rat.vy * f;
@@ -96,7 +101,8 @@ const GAMES = (() => {
           if (p.type === 'spring') drawSpr(ctx, 'mola', p.x + p.w / 2 - 4, y - 5);
         }
         for (const c of cheese) if (!c.got) drawSpr(ctx, 'queijo', c.x - 4, c.y - cam - 4);
-        drawRat(ctx, rat.x, rat.y - cam, ratOpts(rat.vy < 0 ? 'happy' : 'wow'));
+        const ro = ratOpts(rat.vy < 0 ? 'happy' : 'wow'); ro.flip = rat.vx < -0.3;
+        drawRat(ctx, rat.x, rat.y - cam, ro);
       },
       over:() => over,
       result(){ return {score, coins:Math.min(45, Math.floor(score / 6) + (space ? 10 : 0))}; }
@@ -106,14 +112,15 @@ const GAMES = (() => {
   /* ---------- 2. Corrida na Cozinha ---------- */
   function Corrida(){
     const GY = H - 52, RX = Math.round(W * 0.3);
-    const rat = {y:GY, vy:0, ground:true};
-    let speed = 2.0, dist = 0, over = false, nextObs = 60, obs = [], cheese = [], score = 0, wob = 0;
+    const rat = {y:GY, vy:0, ground:true, holdT:0};
+    let speed = 2.0, dist = 0, over = false, nextObs = 70, obs = [], cheese = [], score = 0, wob = 0;
     return {
       update(dt){
         if (over) return;
         const f = F(dt);
-        if ((inp.tap || inp.btn) && rat.ground){ rat.vy = -5.8; rat.ground = false; SFX.play('jump'); }
+        if ((inp.tap || inp.btn) && rat.ground){ rat.vy = -5.0; rat.ground = false; rat.holdT = 0; SFX.play('jump'); }
         inp.tap = false; inp.btn = null;
+        if (!rat.ground && inp.down && rat.vy < 0 && rat.holdT < 200){ rat.vy -= 0.14 * f; rat.holdT += dt; }
         rat.vy += 0.3 * f; rat.y += rat.vy * f;
         if (rat.y >= GY){ rat.y = GY; rat.vy = 0; rat.ground = true; }
         speed += 0.00025 * dt;
@@ -176,7 +183,7 @@ const GAMES = (() => {
         }
         for (const it of items){
           it.y += it.vy * F(dt);
-          if (!it.hit && it.y > FY - 22 && it.y < FY - 2 && Math.abs(it.x - x) < 11){
+          if (!it.hit && it.y > FY - 24 && it.y < FY - 2 && Math.abs(it.x - x) < 13){
             it.hit = true;
             if (it.bad){ lives--; flash = 400; SFX.play('hit'); if (lives <= 0) over = true; }
             else { score += it.val; SFX.play('coin'); }
