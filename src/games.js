@@ -211,7 +211,7 @@ const GAMES = (() => {
     const ICONS_ALL = ['queijo', 'semente', 'biscoito', 'morango', 'bolo', 'sopa', 'coracao', 'moeda', 'pizza', 'uva', 'pao', 'sorvete', 'pipoca', 'brigadeiro'];
     const GAP = 4;
     let round = 1, deck = [], COLS = 4, ROWS = 4, CS = 30, X0 = 0, Y0 = 0;
-    let first = -1, second = -1, lock = 0, moves = 0, over = false, cursor = 0, done = 0, timeLeft = 0, totalPairs = 0, flashT = 0;
+    let first = -1, second = -1, lock = 0, moves = 0, over = false, cursor = 0, done = 0, timeLeft = 0, total = 1, totalPairs = 0, flashT = 0;
     function setup(){
       ROWS = Math.min(6, 3 + round); COLS = 4;
       const pairs = COLS * ROWS / 2;
@@ -222,7 +222,10 @@ const GAMES = (() => {
       X0 = Math.floor((W - (COLS * CS + (COLS - 1) * GAP)) / 2);
       Y0 = Math.max(24, Math.floor((H - (ROWS * CS + (ROWS - 1) * GAP)) / 2));
       first = second = -1; lock = 0; done = 0; cursor = 0;
-      timeLeft = (30 + pairs * 4) * 1000;
+      /* tempo da rodada: base + por par; depois do tabuleiro maximo vai diminuindo */
+      const extra = Math.max(0, round - 3);
+      total = Math.max(15, 14 + pairs * 2 - extra * 3) * 1000;
+      timeLeft = total;
     }
     setup();
     function flip(i){
@@ -256,7 +259,8 @@ const GAMES = (() => {
         else if (inp.btn === 'B'){ flip(cursor); }
         inp.btn = null;
         if (timeLeft <= 0){ timeLeft = 0; over = true; SFX.play('sad'); }
-        UI.hud('RODADA ' + round + ' · PARES ' + totalPairs, 'TEMPO ' + Math.ceil(timeLeft / 1000), true);
+        UI.hud('RODADA ' + round, 'PARES ' + totalPairs, true);
+        UI.timer(timeLeft / 1000, total / 1000);
         UI.hint(flashT > 0 ? 'RODADA COMPLETA!' : '', true);
       },
       draw(ctx){
@@ -284,7 +288,7 @@ const GAMES = (() => {
   function Labirinto(){
     const CS = 14, OY = 24, padH = Math.ceil(H * 0.22);
     const MAXC = Math.max(7, Math.floor((W - 8) / CS)), MAXR = Math.max(7, Math.floor((H - OY - padH - 8) / CS));
-    let level = 1, done = 0, COLS = 5, ROWS = 6, OX = 0, cells = [], over = false, timeLeft = 0, flashT = 0, dir = 'e';
+    let level = 1, done = 0, COLS = 5, ROWS = 6, OX = 0, cells = [], over = false, timeLeft = 0, total = 1, flashT = 0, dir = 'e';
     const rat = {c:0, r:0, x:0, y:0, tc:0, tr:0, moving:false};
     const D = {n:[0, -1, 's'], s:[0, 1, 'n'], e:[1, 0, 'w'], w:[-1, 0, 'e']};
     function build(){
@@ -303,8 +307,10 @@ const GAMES = (() => {
         stack.push([nc, nr]);
       }
       rat.c = rat.r = rat.x = rat.y = rat.tc = rat.tr = 0; rat.moving = false;
+      /* tempo da fase: base + por celula; depois do tamanho maximo vai diminuindo */
       const extra = Math.max(0, level - (MAXC - 5) * 2);
-      timeLeft = Math.max(7000, (8000 + COLS * ROWS * 100) - extra * 800);
+      total = Math.max(7000, (8000 + COLS * ROWS * 100) - extra * 800);
+      timeLeft = total;
     }
     build();
     const openings = (c, r) => ['n', 'e', 's', 'w'].filter(k => !cells[r][c][k]).length;
@@ -323,7 +329,7 @@ const GAMES = (() => {
     return {
       update(dt){
         if (over) return;
-        if (flashT > 0){ flashT -= dt; if (flashT <= 0){ level++; done++; build(); } inp.swipe = null; inp.btn = null; inp.tap = false; UI.hud('FASE ' + level, 'TEMPO ' + Math.ceil(timeLeft / 1000)); UI.hint('FASE ' + (level + 1) + '!'); return; }
+        if (flashT > 0){ flashT -= dt; if (flashT <= 0){ level++; done++; build(); } inp.swipe = null; inp.btn = null; inp.tap = false; UI.hud('FASE ' + level, ''); UI.hint('FASE ' + (level + 1) + '!'); return; }
         UI.hint('');
         timeLeft -= dt;
         if (inp.swipe){ go(inp.swipe); inp.swipe = null; }
@@ -338,7 +344,8 @@ const GAMES = (() => {
           }
         }
         if (timeLeft <= 0){ timeLeft = 0; over = true; SFX.play('sad'); }
-        UI.hud('FASE ' + level, 'TEMPO ' + Math.ceil(timeLeft / 1000));
+        UI.hud('FASE ' + level, '');
+        UI.timer(timeLeft / 1000, total / 1000);
       },
       draw(ctx){
         rect(ctx, 0, 0, W, H, '#c8945c');

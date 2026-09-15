@@ -224,15 +224,16 @@
       for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (!grid[r][c]) grid[r][c] = fillers[Math.floor(Math.random() * fillers.length)];
       for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++){ const k = Math.floor(Math.random() * 4); for (let i = 0; i < k; i++) grid[r][c] = rot(grid[r][c]); }
       if (flood()){ const [c, r] = path[Math.floor(path.length / 2)]; grid[r][c] = rot(grid[r][c]); flood(); }
+      /* tempo da fase: base + por cano; depois do tabuleiro maximo vai diminuindo */
       const extra = Math.max(0, level - 7);
-      total = Math.max(12000, 14000 + COLS * ROWS * 900 - extra * 3000);
+      total = Math.max(12000, 10000 + COLS * ROWS * 750 - extra * 3000);
       timeLeft = total; won = false;
     }
     build();
     return {
       update(dt){
         if (over) return;
-        if (flashT > 0){ flashT -= dt; if (flashT <= 0){ level++; done++; build(); } inp.tap = false; inp.btn = null; UI.hint('FASE ' + (level + 1) + '!'); UI.hud('FASE ' + level, 'AGUA ' + Math.ceil(timeLeft / 1000)); return; }
+        if (flashT > 0){ flashT -= dt; if (flashT <= 0){ level++; done++; build(); } inp.tap = false; inp.btn = null; UI.hint('FASE ' + (level + 1) + '!'); UI.hud('FASE ' + level, ''); return; }
         UI.hint('');
         timeLeft -= dt;
         if (inp.tap){
@@ -245,7 +246,8 @@
         }
         inp.btn = null;
         if (timeLeft <= 0){ timeLeft = 0; over = true; SFX.play('sad'); }
-        UI.hud('FASE ' + level, 'AGUA ' + Math.ceil(timeLeft / 1000));
+        UI.hud('FASE ' + level, '');
+        UI.timer(timeLeft / 1000, total / 1000);
       },
       draw(ctx){
         bgTiles(ctx, '#d6ecf3', '#b9d7e2', '#eaf6fa', '#bfd9e6', OY + ROWS * CS + 4);

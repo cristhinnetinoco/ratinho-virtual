@@ -372,6 +372,19 @@ const UI = (() => {
     const html = '<span>' + left + '</span><span>' + right + '</span>';
     if (h.innerHTML !== html) h.innerHTML = html;
   }
+  let lastSec = -1;
+  function timer(seconds, total){
+    let t = el.querySelector('.timer');
+    if (!t){ t = document.createElement('div'); t.className = 'timer'; t.innerHTML = '<div class="num"></div><div class="track"><div class="fill"></div></div>'; el.appendChild(t); lastSec = -1; }
+    const s = Math.max(0, Math.ceil(seconds));
+    if (s !== lastSec){
+      t.querySelector('.num').textContent = s;
+      if (s <= 3 && s > 0 && lastSec !== -1) SFX.play('blip');
+      lastSec = s;
+    }
+    t.classList.toggle('low', seconds <= 5);
+    t.querySelector('.fill').style.width = Math.max(0, Math.min(100, seconds / Math.max(1, total) * 100)) + '%';
+  }
   function hint(text, dark){
     let h = el.querySelector('.hint');
     if (!text){ if (h) h.remove(); return; }
@@ -394,8 +407,8 @@ const UI = (() => {
     if (!q){ q = document.createElement('button'); q.className = 'quit'; q.setAttribute('aria-label', 'Sair do jogo'); q.textContent = 'X'; el.appendChild(q); }
     q.onclick = e => { e.preventDefault(); cb(); };
   }
-  function clearGameUI(){ el.querySelectorAll('.hud, .hint, .dpad, .quit').forEach(x => x.remove()); }
+  function clearGameUI(){ el.querySelectorAll('.hud, .hint, .dpad, .quit, .timer').forEach(x => x.remove()); lastSec = -1; }
 
   return {open, close, isOpen, current, button, toast, title, intro, nameForm, foodMenu, playMenu, status, shop, settings,
-          confirm, evolved, result, gameIntro, hud, hint, dpad, quitButton, clearGameUI, setFocus, topbar, hideTop, nav, hideNav};
+          confirm, evolved, result, gameIntro, hud, hint, timer, dpad, quitButton, clearGameUI, setFocus, topbar, hideTop, nav, hideNav};
 })();

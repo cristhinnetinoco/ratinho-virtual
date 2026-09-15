@@ -145,6 +145,21 @@ body{
   pointer-events:none !important;
 }
 .hud.dark{color:#fffaf0;text-shadow:1px 1px 0 #3a2a4a,-1px -1px 0 #3a2a4a,1px -1px 0 #3a2a4a,-1px 1px 0 #3a2a4a}
+.timer{
+  position:absolute;left:50%;top:5.5%;transform:translateX(-50%);
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  pointer-events:none !important;
+}
+.timer .num{
+  font-family:"Press Start 2P",monospace;font-size:1.1em;color:#3a2a4a;
+  text-shadow:2px 2px 0 #fffaf0,-2px -2px 0 #fffaf0,2px -2px 0 #fffaf0,-2px 2px 0 #fffaf0,0 2px 0 #fffaf0,0 -2px 0 #fffaf0,2px 0 0 #fffaf0,-2px 0 0 #fffaf0;
+  font-variant-numeric:tabular-nums;
+}
+.timer .track{width:4.5em;height:.35em;border:2px solid #3a2a4a;background:#fffaf0;overflow:hidden}
+.timer .fill{height:100%;background:#3fb7a0}
+.timer.low .num{color:#e05a4e;animation:pulse .5s steps(2,start) infinite}
+.timer.low .fill{background:#e05a4e}
+@keyframes pulse{to{opacity:.35}}
 .hint{
   position:absolute;left:0;right:0;bottom:3%;text-align:center;
   font-family:"Press Start 2P",monospace;font-size:.38em;color:#3a2a4a;
@@ -2524,6 +2539,19 @@ const UI = (() => {
     const html = '<span>' + left + '</span><span>' + right + '</span>';
     if (h.innerHTML !== html) h.innerHTML = html;
   }
+  let lastSec = -1;
+  function timer(seconds, total){
+    let t = el.querySelector('.timer');
+    if (!t){ t = document.createElement('div'); t.className = 'timer'; t.innerHTML = '<div class="num"></div><div class="track"><div class="fill"></div></div>'; el.appendChild(t); lastSec = -1; }
+    const s = Math.max(0, Math.ceil(seconds));
+    if (s !== lastSec){
+      t.querySelector('.num').textContent = s;
+      if (s <= 3 && s > 0 && lastSec !== -1) SFX.play('blip');
+      lastSec = s;
+    }
+    t.classList.toggle('low', seconds <= 5);
+    t.querySelector('.fill').style.width = Math.max(0, Math.min(100, seconds / Math.max(1, total) * 100)) + '%';
+  }
   function hint(text, dark){
     let h = el.querySelector('.hint');
     if (!text){ if (h) h.remove(); return; }
@@ -2546,10 +2574,10 @@ const UI = (() => {
     if (!q){ q = document.createElement('button'); q.className = 'quit'; q.setAttribute('aria-label', 'Sair do jogo'); q.textContent = 'X'; el.appendChild(q); }
     q.onclick = e => { e.preventDefault(); cb(); };
   }
-  function clearGameUI(){ el.querySelectorAll('.hud, .hint, .dpad, .quit').forEach(x => x.remove()); }
+  function clearGameUI(){ el.querySelectorAll('.hud, .hint, .dpad, .quit, .timer').forEach(x => x.remove()); lastSec = -1; }
 
   return {open, close, isOpen, current, button, toast, title, intro, nameForm, foodMenu, playMenu, status, shop, settings,
-          confirm, evolved, result, gameIntro, hud, hint, dpad, quitButton, clearGameUI, setFocus, topbar, hideTop, nav, hideNav};
+          confirm, evolved, result, gameIntro, hud, hint, timer, dpad, quitButton, clearGameUI, setFocus, topbar, hideTop, nav, hideNav};
 })();
 
 /* ===== Mini-jogos (usam W e H da tela, definidos em scene.js) ===== */
@@ -2765,7 +2793,7 @@ const GAMES = (() => {
     const ICONS_ALL = ['queijo', 'semente', 'biscoito', 'morango', 'bolo', 'sopa', 'coracao', 'moeda', 'pizza', 'uva', 'pao', 'sorvete', 'pipoca', 'brigadeiro'];
     const GAP = 4;
     let round = 1, deck = [], COLS = 4, ROWS = 4, CS = 30, X0 = 0, Y0 = 0;
-    let first = -1, second = -1, lock = 0, moves = 0, over = false, cursor = 0, done = 0, timeLeft = 0, totalPairs = 0, flashT = 0;
+    let first = -1, second = -1, lock = 0, moves = 0, over = false, cursor = 0, done = 0, timeLeft = 0, total = 1, totalPairs = 0, flashT = 0;
     function setup(){
       ROWS = Math.min(6, 3 + round); COLS = 4;
       const pairs = COLS * ROWS / 2;
@@ -2776,7 +2804,10 @@ const GAMES = (() => {
       X0 = Math.floor((W - (COLS * CS + (COLS - 1) * GAP)) / 2);
       Y0 = Math.max(24, Math.floor((H - (ROWS * CS + (ROWS - 1) * GAP)) / 2));
       first = second = -1; lock = 0; done = 0; cursor = 0;
-      timeLeft = (30 + pairs * 4) * 1000;
+      /* tempo da rodada: base + por par; depois do tabuleiro maximo vai diminuindo */
+      const extra = Math.max(0, round - 3);
+      total = Math.max(15, 14 + pairs * 2 - extra * 3) * 1000;
+      timeLeft = total;
     }
     setup();
     function flip(i){
@@ -2810,7 +2841,8 @@ const GAMES = (() => {
         else if (inp.btn === 'B'){ flip(cursor); }
         inp.btn = null;
         if (timeLeft <= 0){ timeLeft = 0; over = true; SFX.play('sad'); }
-        UI.hud('RODADA ' + round + ' · PARES ' + totalPairs, 'TEMPO ' + Math.ceil(timeLeft / 1000), true);
+        UI.hud('RODADA ' + round, 'PARES ' + totalPairs, true);
+        UI.timer(timeLeft / 1000, total / 1000);
         UI.hint(flashT > 0 ? 'RODADA COMPLETA!' : '', true);
       },
       draw(ctx){
@@ -2838,7 +2870,7 @@ const GAMES = (() => {
   function Labirinto(){
     const CS = 14, OY = 24, padH = Math.ceil(H * 0.22);
     const MAXC = Math.max(7, Math.floor((W - 8) / CS)), MAXR = Math.max(7, Math.floor((H - OY - padH - 8) / CS));
-    let level = 1, done = 0, COLS = 5, ROWS = 6, OX = 0, cells = [], over = false, timeLeft = 0, flashT = 0, dir = 'e';
+    let level = 1, done = 0, COLS = 5, ROWS = 6, OX = 0, cells = [], over = false, timeLeft = 0, total = 1, flashT = 0, dir = 'e';
     const rat = {c:0, r:0, x:0, y:0, tc:0, tr:0, moving:false};
     const D = {n:[0, -1, 's'], s:[0, 1, 'n'], e:[1, 0, 'w'], w:[-1, 0, 'e']};
     function build(){
@@ -2857,8 +2889,10 @@ const GAMES = (() => {
         stack.push([nc, nr]);
       }
       rat.c = rat.r = rat.x = rat.y = rat.tc = rat.tr = 0; rat.moving = false;
+      /* tempo da fase: base + por celula; depois do tamanho maximo vai diminuindo */
       const extra = Math.max(0, level - (MAXC - 5) * 2);
-      timeLeft = Math.max(7000, (8000 + COLS * ROWS * 100) - extra * 800);
+      total = Math.max(7000, (8000 + COLS * ROWS * 100) - extra * 800);
+      timeLeft = total;
     }
     build();
     const openings = (c, r) => ['n', 'e', 's', 'w'].filter(k => !cells[r][c][k]).length;
@@ -2877,7 +2911,7 @@ const GAMES = (() => {
     return {
       update(dt){
         if (over) return;
-        if (flashT > 0){ flashT -= dt; if (flashT <= 0){ level++; done++; build(); } inp.swipe = null; inp.btn = null; inp.tap = false; UI.hud('FASE ' + level, 'TEMPO ' + Math.ceil(timeLeft / 1000)); UI.hint('FASE ' + (level + 1) + '!'); return; }
+        if (flashT > 0){ flashT -= dt; if (flashT <= 0){ level++; done++; build(); } inp.swipe = null; inp.btn = null; inp.tap = false; UI.hud('FASE ' + level, ''); UI.hint('FASE ' + (level + 1) + '!'); return; }
         UI.hint('');
         timeLeft -= dt;
         if (inp.swipe){ go(inp.swipe); inp.swipe = null; }
@@ -2892,7 +2926,8 @@ const GAMES = (() => {
           }
         }
         if (timeLeft <= 0){ timeLeft = 0; over = true; SFX.play('sad'); }
-        UI.hud('FASE ' + level, 'TEMPO ' + Math.ceil(timeLeft / 1000));
+        UI.hud('FASE ' + level, '');
+        UI.timer(timeLeft / 1000, total / 1000);
       },
       draw(ctx){
         rect(ctx, 0, 0, W, H, '#c8945c');
@@ -3190,15 +3225,16 @@ const GAMES = (() => {
       for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (!grid[r][c]) grid[r][c] = fillers[Math.floor(Math.random() * fillers.length)];
       for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++){ const k = Math.floor(Math.random() * 4); for (let i = 0; i < k; i++) grid[r][c] = rot(grid[r][c]); }
       if (flood()){ const [c, r] = path[Math.floor(path.length / 2)]; grid[r][c] = rot(grid[r][c]); flood(); }
+      /* tempo da fase: base + por cano; depois do tabuleiro maximo vai diminuindo */
       const extra = Math.max(0, level - 7);
-      total = Math.max(12000, 14000 + COLS * ROWS * 900 - extra * 3000);
+      total = Math.max(12000, 10000 + COLS * ROWS * 750 - extra * 3000);
       timeLeft = total; won = false;
     }
     build();
     return {
       update(dt){
         if (over) return;
-        if (flashT > 0){ flashT -= dt; if (flashT <= 0){ level++; done++; build(); } inp.tap = false; inp.btn = null; UI.hint('FASE ' + (level + 1) + '!'); UI.hud('FASE ' + level, 'AGUA ' + Math.ceil(timeLeft / 1000)); return; }
+        if (flashT > 0){ flashT -= dt; if (flashT <= 0){ level++; done++; build(); } inp.tap = false; inp.btn = null; UI.hint('FASE ' + (level + 1) + '!'); UI.hud('FASE ' + level, ''); return; }
         UI.hint('');
         timeLeft -= dt;
         if (inp.tap){
@@ -3211,7 +3247,8 @@ const GAMES = (() => {
         }
         inp.btn = null;
         if (timeLeft <= 0){ timeLeft = 0; over = true; SFX.play('sad'); }
-        UI.hud('FASE ' + level, 'AGUA ' + Math.ceil(timeLeft / 1000));
+        UI.hud('FASE ' + level, '');
+        UI.timer(timeLeft / 1000, total / 1000);
       },
       draw(ctx){
         bgTiles(ctx, '#d6ecf3', '#b9d7e2', '#eaf6fa', '#bfd9e6', OY + ROWS * CS + 4);

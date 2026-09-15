@@ -129,6 +129,21 @@ body{
   pointer-events:none !important;
 }
 .hud.dark{color:#fffaf0;text-shadow:1px 1px 0 #3a2a4a,-1px -1px 0 #3a2a4a,1px -1px 0 #3a2a4a,-1px 1px 0 #3a2a4a}
+.timer{
+  position:absolute;left:50%;top:5.5%;transform:translateX(-50%);
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  pointer-events:none !important;
+}
+.timer .num{
+  font-family:"Press Start 2P",monospace;font-size:1.1em;color:#3a2a4a;
+  text-shadow:2px 2px 0 #fffaf0,-2px -2px 0 #fffaf0,2px -2px 0 #fffaf0,-2px 2px 0 #fffaf0,0 2px 0 #fffaf0,0 -2px 0 #fffaf0,2px 0 0 #fffaf0,-2px 0 0 #fffaf0;
+  font-variant-numeric:tabular-nums;
+}
+.timer .track{width:4.5em;height:.35em;border:2px solid #3a2a4a;background:#fffaf0;overflow:hidden}
+.timer .fill{height:100%;background:#3fb7a0}
+.timer.low .num{color:#e05a4e;animation:pulse .5s steps(2,start) infinite}
+.timer.low .fill{background:#e05a4e}
+@keyframes pulse{to{opacity:.35}}
 .hint{
   position:absolute;left:0;right:0;bottom:3%;text-align:center;
   font-family:"Press Start 2P",monospace;font-size:.38em;color:#3a2a4a;
