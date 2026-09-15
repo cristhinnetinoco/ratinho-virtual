@@ -224,9 +224,8 @@
       for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (!grid[r][c]) grid[r][c] = fillers[Math.floor(Math.random() * fillers.length)];
       for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++){ const k = Math.floor(Math.random() * 4); for (let i = 0; i < k; i++) grid[r][c] = rot(grid[r][c]); }
       if (flood()){ const [c, r] = path[Math.floor(path.length / 2)]; grid[r][c] = rot(grid[r][c]); flood(); }
-      /* tempo da fase: base + por cano; depois do tabuleiro maximo vai diminuindo */
-      const extra = Math.max(0, level - 7);
-      total = Math.max(12000, 10000 + COLS * ROWS * 750 - extra * 3000);
+      /* tempo da fase: 10 s na primeira, +4 s por fase */
+      total = (10 + (level - 1) * 4) * 1000;
       timeLeft = total; won = false;
     }
     build();
