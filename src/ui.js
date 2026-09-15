@@ -237,7 +237,7 @@ const UI = (() => {
         list += '<h3>' + esc(room.name) + ' · decoração</h3>';
         list += Object.keys(DECOR).filter(k => DECOR[k].room === room.id).map(k => {
           const d = DECOR[k], owned = S.decor.includes(k), paper = d.kind === 'paper';
-          const icon = paper ? sprImg('brilho') : d.kind === 'rug' ? sprImg('coracao') : sprImg(d.spr || k);
+          const icon = paper ? sprImg('brilho') : d.kind === 'rug' ? sprImg('coracao') : d.draw ? '<img class="ico" alt="" src="' + furnIconURL(d.draw, d.w, d.h) + '">' : sprImg(d.spr || k);
           const meta = owned ? (paper ? (S.paper === k ? 'usando' : 'usar') : 'na ' + room.name.toLowerCase()) : d.price + '';
           return row(owned ? (paper ? 'paper' : 'none') : 'buy', owned ? k : 'decor:' + k, icon, d.name, meta, owned ? 'owned' : '');
         }).join('');

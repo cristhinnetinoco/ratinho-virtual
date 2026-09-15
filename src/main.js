@@ -41,6 +41,7 @@
   function activate(i){
     if (!S.started) return;
     const id = ICONS[i].id;
+    if (SCENE.riding && id !== 'status' && id !== 'loja' && id !== 'config') stopRide();
     switch (id){
       case 'comer':
         inRoom(1, () => UI.foodMenu(k => {
@@ -134,6 +135,23 @@
       SCENE.sel = i; SFX.play('ok'); activate(i); return;
     }
     if (y < LAY.top) return;
+    if (ROOMS[SCENE.room].id === 'sala' && S.decor.includes('roda') && !S.sleeping){
+      if (SCENE.riding){
+        const pos = ratPos('sala');
+        if (pos && Math.abs(x - pos.x) < 20 && y > pos.y - 38 && y < pos.y + 8){
+          stopRide(); SFX.play('back'); UI.toast(S.name + ' saiu da rodinha.', 1200); return;
+        }
+        if (y >= LAY.floorY && y < H - LAY.bar){
+          SCENE.targetX = Math.min(W - 16, Math.max(16, x)); SCENE.targetY = Math.min(LAY.walkBottom, Math.max(LAY.walkTop, y));
+          SFX.play('blip'); return;
+        }
+      } else {
+        const r = wheelRect();
+        if (x >= r.x - 2 && x <= r.x + r.w + 2 && y >= r.y - 2 && y <= r.y + r.h + 2){
+          startRide(); SFX.play('ok'); UI.toast('Toque no chão para correr. Toque nele para sair.', 2400); return;
+        }
+      }
+    }
     for (let i = 0; i < S.poops; i++){
       const p = poopSpot(i);
       if (p.room === SCENE.room && Math.abs(x - p.x) < 9 && Math.abs(y - (p.y - 4)) < 9){

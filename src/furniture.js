@@ -213,6 +213,49 @@ const FDRAW = {
     rect(ctx, x + 6, y + h - 2, 13, 2, K);
   }
 };
+/* rodinha de correr: parada (com base) ou rolando com o rato dentro */
+function ringRows(ctx, cx, cy, rOut, rIn, color){
+  ctx.fillStyle = color;
+  cx = Math.round(cx); cy = Math.round(cy);
+  for (let dy = -Math.round(rOut); dy <= Math.round(rOut); dy++){
+    const t = dy / (rOut + 0.5); if (t < -1 || t > 1) continue;
+    const ho = rOut * Math.sqrt(Math.max(0, 1 - t * t));
+    const ti = dy / (rIn + 0.5);
+    const hi = Math.abs(ti) < 1 ? rIn * Math.sqrt(1 - ti * ti) : 0;
+    if (hi <= 0){ ctx.fillRect(Math.round(cx - ho), cy + dy, Math.round(cx + ho) - Math.round(cx - ho) + 1, 1); }
+    else {
+      ctx.fillRect(Math.round(cx - ho), cy + dy, Math.max(1, Math.round(cx - hi) - Math.round(cx - ho)), 1);
+      ctx.fillRect(Math.round(cx + hi) + 1, cy + dy, Math.max(1, Math.round(cx + ho) - Math.round(cx + hi)), 1);
+    }
+  }
+}
+/* rodinha de correr: parte de tras (disco), e parte da frente (aro + raios), para o rato caber dentro */
+function drawWheelBack(ctx, cx, cy, r){
+  fillEllipse(ctx, cx, cy, r + 1, r + 1, K);
+  fillEllipse(ctx, cx, cy, r, r, '#e3dff0');
+}
+function drawWheelFront(ctx, cx, cy, r, ang, alpha){
+  ctx.save();
+  ctx.globalAlpha = alpha == null ? 1 : alpha;
+  ringRows(ctx, cx, cy, r + 1, r - 3, PAL.g);
+  ringRows(ctx, cx, cy, r + 1, r, K);
+  ringRows(ctx, cx, cy, r - 2, r - 3, K);
+  for (let i = 0; i < 6; i++){
+    const a = ang + i * Math.PI / 3;
+    const ex = cx + Math.cos(a) * (r - 3), ey = cy + Math.sin(a) * (r - 3);
+    const n = Math.ceil(r);
+    for (let s = 2; s <= n; s++){ const t = s / n; px(ctx, cx + (ex - cx) * t, cy + (ey - cy) * t, PAL.G); }
+  }
+  fillEllipse(ctx, cx, cy, 2, 2, K); px(ctx, cx, cy, PAL.g);
+  ctx.restore();
+}
+FDRAW.roda = function(ctx, x, y, w, h){
+  const r = Math.floor(Math.min(w, h - 6) / 2) - 1, cx = x + Math.floor(w / 2), cy = y + r + 1;
+  rect(ctx, cx - 1, cy, 3, h - 4 - (cy - y), PAL.N); rect(ctx, cx - 2, cy, 5, 1, K);
+  drawWheelBack(ctx, cx, cy, r);
+  drawWheelFront(ctx, cx, cy, r, 0.3);
+  box(ctx, cx - 8, y + h - 5, 17, 5, PAL.N, K);
+};
 function drawFurn(ctx, name, x, y, w, h, night){ const f = FDRAW[name]; if (f) f(ctx, x, y, w, h, night); }
 const _furnIcons = new Map();
 function furnIconURL(name, w, h){
@@ -258,7 +301,7 @@ const DECOR = {
   quadro:         {room:'sala',     name:'Quadro pintado',       price:45, wall:true, x:0.70, y:12},
   planta:         {room:'sala',     name:'Planta no dedal',      price:30, x:0.90, floor:true},
   tv:             {room:'sala',     name:'TV miniatura',         price:120, x:0.06, floor:true, spr:'tv_mini'},
-  roda:           {room:'sala',     name:'Rodinha de correr',    price:70, x:0.76, floor:true},
+  roda:           {room:'sala',     name:'Rodinha de correr',    price:70, x:0.74, floor:true, draw:'roda', w:32, h:36, desc:'Toque nela para o rato entrar e correr pela sala.'},
   papel_listras:  {room:'sala',     name:'Papel listrado',       price:60, kind:'paper'},
   papel_bolinhas: {room:'sala',     name:'Papel de bolinhas',    price:60, kind:'paper'},
   papel_coracoes: {room:'sala',     name:'Papel de corações',    price:80, kind:'paper'},

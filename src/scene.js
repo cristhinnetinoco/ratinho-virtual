@@ -23,8 +23,27 @@ const SCENE = {
   ratX:60, ratY:200, dir:1, walkT:0, targetX:60, targetY:200,
   anim:null, fx:[],
   blinkAt:0, blinking:false,
-  trans:null
+  trans:null,
+  riding:false, wheelAng:0, rideDist:0
 };
+const WHEEL_R = 15;
+function wheelRect(){
+  const d = DECOR.roda, c = {w:d.w, h:d.h};
+  const x = Math.round(d.x * W) - Math.round(c.w / 2), y = LAY.floorY + Math.round(LAY.floorH * 0.62) - c.h;
+  return {x, y, w:c.w, h:c.h};
+}
+function startRide(){
+  const r = wheelRect();
+  SCENE.riding = true; SCENE.anim = null; SCENE.rideDist = 0;
+  SCENE.ratX = r.x + Math.round(r.w / 2); SCENE.ratY = Math.min(LAY.walkBottom, Math.max(LAY.walkTop, r.y + r.h - 4));
+  SCENE.targetX = SCENE.ratX; SCENE.targetY = SCENE.ratY;
+}
+function stopRide(){
+  if (!SCENE.riding) return;
+  SCENE.riding = false;
+  SCENE.ratX = Math.min(W - 16, SCENE.ratX + 20); SCENE.targetX = SCENE.ratX; SCENE.targetY = SCENE.ratY;
+  SCENE.walkT = 2500;
+}
 
 function iconRect(i){
   const sw = W / ICONS.length;
@@ -122,6 +141,10 @@ function drawRoomItems(ctx, r, night){
   }
   for (const k of S.decor){
     const d = DECOR[k]; if (!d || d.room !== room.id || !(d.floor || d.onTub)) continue;
+    if (d.draw){
+      if (k === 'roda' && SCENE.riding) continue;
+      const r = wheelRect(); drawFurn(ctx, d.draw, r.x, r.y, r.w, r.h, night); continue;
+    }
     const spr = d.spr || k, c = spriteCanvas(spr); if (!c) continue;
     if (d.onTub){ const t = furnDef('banheira'); drawSpr(ctx, spr, slotX('banheira') + 5, fb - t.h - c.height + 4); }
     else drawSpr(ctx, spr, Math.round(d.x * W) - Math.round(c.width / 2), LAY.floorY + Math.round(LAY.floorH * 0.62) - c.height);
@@ -153,6 +176,7 @@ function goRoom(idx, dir){
   if (idx === SCENE.room) return;
   const d = dir || (idx > SCENE.room ? 1 : -1);
   SCENE.trans = {from:SCENE.room, to:idx, start:performance.now(), dir:d};
+  SCENE.riding = false;
   SCENE.room = idx; S.room = idx;
   SCENE.ratX = d > 0 ? W + 16 : -16;
   SCENE.ratY = Math.min(Math.max(SCENE.ratY, LAY.walkTop), LAY.walkBottom);
@@ -163,7 +187,18 @@ function goRoom(idx, dir){
 
 function updateScene(dt, t){
   if (SCENE.trans && t - SCENE.trans.start > 280) SCENE.trans = null;
-  if (S.started && !S.sleeping && !SCENE.anim && mood() !== 'sick'){
+  if (SCENE.riding){
+    const dx = SCENE.targetX - SCENE.ratX, dy = SCENE.targetY - SCENE.ratY;
+    const dist = Math.hypot(dx, dy);
+    if (dist > 0.5){
+      const v = 58 * dt / 1000, k = Math.min(1, v / dist), mv = dist * k;
+      SCENE.ratX += dx * k; SCENE.ratY += dy * k;
+      if (Math.abs(dx) > 1) SCENE.dir = dx < 0 ? -1 : 1;
+      SCENE.wheelAng += (dx < 0 ? -1 : 1) * mv / WHEEL_R;
+      SCENE.rideDist += mv;
+      if (SCENE.rideDist > 40){ SCENE.rideDist = 0; S.fun = clamp(S.fun + 1); S.energy = clamp(S.energy - 0.3); if (Math.random() < 0.3) addHearts(1); }
+    }
+  } else if (S.started && !S.sleeping && !SCENE.anim && mood() !== 'sick'){
     SCENE.walkT -= dt;
     if (SCENE.walkT <= 0){
       SCENE.walkT = 2500 + Math.random() * 5000;
@@ -218,9 +253,17 @@ function drawRatInRoom(ctx, r, t){
     else if (a.type === 'no'){ face = 'sad'; flip = Math.floor(t / 150) % 2 === 0; }
     else if (a.type === 'evolve'){ face = 'wow'; }
   }
+  const riding = SCENE.riding && roomId === 'sala';
+  if (riding){
+    face = 'happy';
+    const moving = Math.hypot(SCENE.targetX - SCENE.ratX, SCENE.targetY - SCENE.ratY) > 1;
+    drawWheelBack(ctx, rx, ry - WHEEL_R + 2, WHEEL_R);
+    ry = ry - 4 + (moving ? (Math.floor(t / 120) % 2) : 0);
+  }
   drawRat(ctx, rx, ry, {
     stage:S.stage, form:S.form, skin:S.skin, hat:S.hat, outfit:S.outfit, face, t, flip, sleeping:S.sleeping, holding
   });
+  if (riding) drawWheelFront(ctx, rx, pos.y - WHEEL_R + 2, WHEEL_R, SCENE.wheelAng, 0.55);
   if (a && a.type === 'bath'){
     for (let i = 0; i < 8; i++){
       const ph = (t / 400 + i * 0.7) % 1;

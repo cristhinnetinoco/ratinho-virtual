@@ -4,20 +4,31 @@ const GAMES = (() => {
     {id:'pulo',      name:'Pulo Espacial',      icon:'nuvem',    how:'Pule de plataforma em plataforma até chegar no espaço! Toque e segure na metade esquerda ou direita da tela para se mover.'},
     {id:'corrida',   name:'Corrida na Cozinha', icon:'ratoeira', how:'Toque na tela para pular as ratoeiras e o gato. Pegue os queijos. Vai ficando mais rápido!'},
     {id:'chuva',     name:'Chuva de Comida',    icon:'biscoito', how:'Arraste o dedo para mover o rato. Pegue a comida que cai e desvie das meias e dos sabonetes. Você tem 3 vidas.'},
-    {id:'memoria',   name:'Jogo da Memória',    icon:'moeda',    how:'Vire as cartas e encontre os 8 pares. Quanto menos jogadas, mais moedas.'},
-    {id:'labirinto', name:'Labirinto',          icon:'queijo',   how:'Leve o rato até o queijo antes do tempo acabar. Use as setas ou deslize o dedo. Ele corre até a próxima curva.'}
+    {id:'memoria',   name:'Jogo da Memória',    icon:'moeda',    how:'Encontre os pares antes do tempo acabar. A cada rodada o tabuleiro cresce. Acabou o tempo, acabou o jogo.'},
+    {id:'labirinto', name:'Labirinto',          icon:'queijo',   how:'Leve o rato até o queijo antes do tempo acabar. Cada fase é maior e mais difícil. Use as setas ou deslize o dedo.'}
   ];
   let cur = null, curId = null, onEnd = null;
   const inp = {down:false, x:0, y:0, sx:0, sy:0, tap:false, swipe:null, btn:null};
   const F = dt => dt / 16.667;
   const ratOpts = face => ({stage:S.stage === 'adult' ? 'young' : S.stage, skin:S.skin, hat:S.hat, outfit:S.outfit, face, t:performance.now()});
+  const lerp = (a, b, t) => a + (b - a) * t;
+  function hexToRgb(h){ return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }
+  function mixColor(stops, v){
+    let i = 0;
+    while (i < stops.length - 2 && v > stops[i + 1][0]) i++;
+    const [v0, c0] = stops[i], [v1, c1] = stops[i + 1];
+    const t = Math.max(0, Math.min(1, (v - v0) / (v1 - v0)));
+    const a = hexToRgb(c0), b = hexToRgb(c1);
+    return 'rgb(' + Math.round(lerp(a[0], b[0], t)) + ',' + Math.round(lerp(a[1], b[1], t)) + ',' + Math.round(lerp(a[2], b[2], t)) + ')';
+  }
 
   /* ---------- 1. Pulo Espacial ---------- */
   function Pulo(){
     const rat = {x:W / 2, y:H - 30, vy:-6.1}, plats = [], cheese = [];
     let cam = 0, score = 0, bonus = 0, over = false, hold = 0, holdDir = 0, space = false, topY = H - 20;
-    const stars = []; for (let i = 0; i < 60; i++) stars.push([Math.random() * W, Math.random() * 1400]);
+    const stars = []; for (let i = 0; i < 70; i++) stars.push([Math.random() * W, Math.random() * 1400, Math.random() < 0.3 ? 2 : 1]);
     const clouds = []; for (let i = 0; i < 14; i++) clouds.push([Math.random() * (W - 16), Math.random() * 900]);
+    const SKY = [[0, '#f1d7c2'], [250, '#bfe6ff'], [700, '#9ad4f5'], [1100, '#7a5fa8'], [1500, '#3a2a5a'], [2000, '#1b1233'], [2600, '#0b0716']];
     function gen(){
       while (topY > cam - H){
         topY -= 22 + Math.random() * 20;
@@ -55,26 +66,30 @@ const GAMES = (() => {
         if (rat.y < camLine) cam = rat.y - H * 0.45;
         const h = Math.max(0, Math.floor(-cam));
         score = Math.floor(h / 5) + bonus;
-        if (!space && h >= 1500){ space = true; bonus += 30; SFX.play('win'); UI.hint('ESPAÇO! +30', true); setTimeout(() => UI.hint(''), 1800); }
+        if (!space && h >= 2000){ space = true; bonus += 30; SFX.play('win'); UI.hint('ESPAÇO! +30', true); setTimeout(() => UI.hint(''), 1800); }
         gen();
         for (let i = plats.length - 1; i >= 0; i--) if (plats[i].y > cam + H + 20) plats.splice(i, 1);
         for (let i = cheese.length - 1; i >= 0; i--) if (cheese[i].y > cam + H + 20) cheese.splice(i, 1);
         if (rat.y > cam + H + 12){ over = true; SFX.play('hit'); }
-        UI.hud('ALT ' + h + 'm', 'PTS ' + score, h > 500);
+        UI.hud('ALT ' + h + 'm', 'PTS ' + score, h > 900);
       },
       draw(ctx){
         const h = Math.max(0, -cam);
-        const band = h < 500 ? 0 : h < 1000 ? 1 : h < 1500 ? 2 : 3;
-        const bg = ['#f1d7c2', '#9ad4f5', '#7a5fa8', '#1b1233'][band];
-        rect(ctx, 0, 0, W, H, bg);
-        if (band === 0){
+        rect(ctx, 0, 0, W, H, mixColor(SKY, h));
+        if (h < 400){
+          ctx.save(); ctx.globalAlpha = Math.max(0, 1 - h / 400);
           for (let y = -((cam * 0.5) % 10); y < H; y += 10) for (let x = 0; x < W; x += 10) px(ctx, x + 2, y, '#e8c3ab');
-        } else if (band < 3){
-          for (const c of clouds){ const y = ((c[1] - cam * 0.4) % 1000 + 1000) % 1000 - 100; if (y > -10 && y < H) drawSpr(ctx, 'nuvem', c[0], y, {alpha:band === 2 ? 0.5 : 0.9}); }
-        } else {
-          for (const s of stars){ const y = ((s[1] - cam * 0.3) % 1400 + 1400) % 1400 - 100; if (y > 0 && y < H) px(ctx, s[0], y, PAL.w); }
-          fillEllipse(ctx, W - 30, 40 - (h - 1500) * 0.02, 12, 12, '#fff3b0'); fillEllipse(ctx, W - 35, 36 - (h - 1500) * 0.02, 4, 4, '#e6d58e');
+          ctx.restore();
         }
+        const cloudA = h < 200 ? 0 : h < 600 ? (h - 200) / 400 : h < 1400 ? 1 : Math.max(0, 1 - (h - 1400) / 500);
+        if (cloudA > 0) for (const c of clouds){ const y = ((c[1] - cam * 0.4) % 1000 + 1000) % 1000 - 100; if (y > -10 && y < H) drawSpr(ctx, 'nuvem', c[0], y, {alpha:cloudA * 0.9}); }
+        const starA = h < 1100 ? 0 : Math.min(1, (h - 1100) / 700);
+        if (starA > 0){
+          ctx.save(); ctx.globalAlpha = starA;
+          for (const s of stars){ const y = ((s[1] - cam * 0.3) % 1400 + 1400) % 1400 - 100; if (y > 0 && y < H){ px(ctx, s[0], y, PAL.w); if (s[2] === 2 && Math.floor(performance.now() / 400 + s[0]) % 3 === 0){ px(ctx, s[0] - 1, y, PAL.w); px(ctx, s[0] + 1, y, PAL.w); } } }
+          ctx.restore();
+        }
+        if (h > 1800){ const my = 40 - (h - 1800) * 0.02; fillEllipse(ctx, W - 30, my, 12, 12, '#fff3b0'); fillEllipse(ctx, W - 35, my - 4, 4, 4, '#e6d58e'); fillEllipse(ctx, W - 26, my + 5, 2, 2, '#e6d58e'); }
         for (const p of plats){
           const y = p.y - cam;
           box(ctx, p.x, y, p.w, 5, p.type === 'move' ? PAL.b : PAL.e, PAL.k);
@@ -184,43 +199,65 @@ const GAMES = (() => {
     };
   }
 
-  /* ---------- 4. Jogo da Memoria ---------- */
+  /* ---------- 4. Jogo da Memoria (rodadas) ---------- */
   function Memoria(){
-    const icons = ['queijo', 'semente', 'biscoito', 'morango', 'bolo', 'sopa', 'coracao', 'moeda'];
-    const deck = icons.concat(icons).map(ic => ({ic, up:false, done:false}));
-    for (let i = deck.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]]; }
-    const GAP = 4, CS = Math.min(44, Math.floor((W - 24 - 3 * GAP) / 4));
-    const X0 = Math.floor((W - (4 * CS + 3 * GAP)) / 2), Y0 = Math.max(26, Math.floor((H - (4 * CS + 3 * GAP)) / 2));
-    let first = -1, second = -1, lock = 0, moves = 0, over = false, cursor = 0, done = 0;
+    const ICONS_ALL = ['queijo', 'semente', 'biscoito', 'morango', 'bolo', 'sopa', 'coracao', 'moeda', 'pizza', 'uva', 'pao', 'sorvete', 'pipoca', 'brigadeiro'];
+    const GAP = 4;
+    let round = 1, deck = [], COLS = 4, ROWS = 4, CS = 30, X0 = 0, Y0 = 0;
+    let first = -1, second = -1, lock = 0, moves = 0, over = false, cursor = 0, done = 0, timeLeft = 0, totalPairs = 0, flashT = 0;
+    function setup(){
+      ROWS = Math.min(6, 3 + round); COLS = 4;
+      const pairs = COLS * ROWS / 2;
+      const icons = ICONS_ALL.slice().sort(() => Math.random() - 0.5).slice(0, pairs);
+      deck = icons.concat(icons).map(ic => ({ic, up:false, done:false}));
+      for (let i = deck.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]]; }
+      CS = Math.min(30, Math.floor((W - 16 - (COLS - 1) * GAP) / COLS), Math.floor((H - 50 - (ROWS - 1) * GAP) / ROWS));
+      X0 = Math.floor((W - (COLS * CS + (COLS - 1) * GAP)) / 2);
+      Y0 = Math.max(24, Math.floor((H - (ROWS * CS + (ROWS - 1) * GAP)) / 2));
+      first = second = -1; lock = 0; done = 0; cursor = 0;
+      timeLeft = (30 + pairs * 4) * 1000;
+    }
+    setup();
     function flip(i){
       const c = deck[i];
       if (lock > 0 || c.up || c.done) return;
       c.up = true; SFX.play('flip');
       if (first < 0){ first = i; return; }
       second = i; moves++;
-      if (deck[first].ic === deck[second].ic){ deck[first].done = deck[second].done = true; done += 2; first = second = -1; SFX.play('coin'); if (done >= 16){ over = true; SFX.play('win'); } }
-      else lock = 750;
+      if (deck[first].ic === deck[second].ic){
+        deck[first].done = deck[second].done = true; done += 2; totalPairs++; first = second = -1; SFX.play('coin');
+        if (done >= deck.length){ round++; flashT = 900; SFX.play('win'); lock = 900; }
+      } else lock = 700;
     }
     return {
       update(dt){
         if (over) return;
-        if (lock > 0){ lock -= dt; if (lock <= 0){ deck[first].up = deck[second].up = false; first = second = -1; } }
+        timeLeft -= dt; flashT = Math.max(0, flashT - dt);
+        if (lock > 0){
+          lock -= dt;
+          if (lock <= 0){
+            if (done >= deck.length) setup();
+            else { deck[first].up = deck[second].up = false; first = second = -1; }
+          }
+        }
         if (inp.tap){
           inp.tap = false;
           const cx = Math.floor((inp.sx - X0) / (CS + GAP)), cy = Math.floor((inp.sy - Y0) / (CS + GAP));
-          if (cx >= 0 && cx < 4 && cy >= 0 && cy < 4){ cursor = cy * 4 + cx; flip(cursor); }
+          if (cx >= 0 && cx < COLS && cy >= 0 && cy < ROWS){ cursor = cy * COLS + cx; flip(cursor); }
         }
-        if (inp.btn === 'A'){ cursor = (cursor + 1) % 16; SFX.play('blip'); }
+        if (inp.btn === 'A'){ cursor = (cursor + 1) % deck.length; SFX.play('blip'); }
         else if (inp.btn === 'B'){ flip(cursor); }
         inp.btn = null;
-        UI.hud('JOGADAS ' + moves, 'PARES ' + (done / 2) + '/8');
+        if (timeLeft <= 0){ timeLeft = 0; over = true; SFX.play('sad'); }
+        UI.hud('RODADA ' + round + ' · PARES ' + totalPairs, 'TEMPO ' + Math.ceil(timeLeft / 1000), true);
+        UI.hint(flashT > 0 ? 'RODADA COMPLETA!' : '', true);
       },
       draw(ctx){
         rect(ctx, 0, 0, W, H, '#6b5a86');
         for (let y = 0; y < H; y += 8) for (let x = (Math.floor(y / 8) % 2) ? 4 : 0; x < W; x += 8) px(ctx, x, y, '#7a69a0');
         const half = Math.floor(CS / 2);
         deck.forEach((c, i) => {
-          const x = X0 + (i % 4) * (CS + GAP), y = Y0 + Math.floor(i / 4) * (CS + GAP);
+          const x = X0 + (i % COLS) * (CS + GAP), y = Y0 + Math.floor(i / COLS) * (CS + GAP);
           if (c.done){ box(ctx, x, y, CS, CS, '#e4f4ee', '#3fb7a0'); drawSpr(ctx, c.ic, x + half - 4, y + half - 4, {alpha:0.55}); }
           else if (c.up){ box(ctx, x, y, CS, CS, PAL.w, PAL.k); drawSpr(ctx, c.ic, x + half - 4, y + half - 4); }
           else {
@@ -232,33 +269,40 @@ const GAMES = (() => {
         });
       },
       over:() => over,
-      result(){ const score = Math.max(0, 100 - moves * 4); return {score, coins:Math.min(40, Math.max(4, Math.floor(score / 3)))}; }
+      result(){ const score = totalPairs; return {score, coins:Math.min(45, totalPairs * 2 + (round - 1) * 3)}; }
     };
   }
 
-  /* ---------- 5. Labirinto ---------- */
+  /* ---------- 5. Labirinto (fases) ---------- */
   function Labirinto(){
     const CS = 14, OY = 24, padH = Math.ceil(H * 0.22);
-    const COLS = Math.max(7, Math.floor((W - 8) / CS)), ROWS = Math.max(7, Math.floor((H - OY - padH - 8) / CS));
-    const OX = Math.floor((W - COLS * CS) / 2);
-    const cells = [];
-    for (let r = 0; r < ROWS; r++){ cells.push([]); for (let c = 0; c < COLS; c++) cells[r].push({n:true, e:true, s:true, w:true, v:false}); }
-    const stack = [[0, 0]]; cells[0][0].v = true;
-    const D = {n:[0, -1, 's'], s:[0, 1, 'n'], e:[1, 0, 'w'], w:[-1, 0, 'e']};
-    while (stack.length){
-      const [c, r] = stack[stack.length - 1];
-      const opts = Object.keys(D).filter(k => { const nc = c + D[k][0], nr = r + D[k][1]; return nc >= 0 && nc < COLS && nr >= 0 && nr < ROWS && !cells[nr][nc].v; });
-      if (!opts.length){ stack.pop(); continue; }
-      const k = opts[Math.floor(Math.random() * opts.length)];
-      const nc = c + D[k][0], nr = r + D[k][1];
-      cells[r][c][k] = false; cells[nr][nc][D[k][2]] = false; cells[nr][nc].v = true;
-      stack.push([nc, nr]);
-    }
+    const MAXC = Math.max(7, Math.floor((W - 8) / CS)), MAXR = Math.max(7, Math.floor((H - OY - padH - 8) / CS));
+    let level = 1, done = 0, COLS = 5, ROWS = 6, OX = 0, cells = [], over = false, timeLeft = 0, flashT = 0, dir = 'e';
     const rat = {c:0, r:0, x:0, y:0, tc:0, tr:0, moving:false};
-    let timeLeft = Math.max(45, Math.round(COLS * ROWS * 0.3)) * 1000, over = false, won = false, dir = 'e';
+    const D = {n:[0, -1, 's'], s:[0, 1, 'n'], e:[1, 0, 'w'], w:[-1, 0, 'e']};
+    function build(){
+      COLS = Math.min(MAXC, 5 + Math.floor(level / 2)); ROWS = Math.min(MAXR, 6 + Math.floor((level + 1) / 2));
+      OX = Math.floor((W - COLS * CS) / 2);
+      cells = [];
+      for (let r = 0; r < ROWS; r++){ cells.push([]); for (let c = 0; c < COLS; c++) cells[r].push({n:true, e:true, s:true, w:true, v:false}); }
+      const stack = [[0, 0]]; cells[0][0].v = true;
+      while (stack.length){
+        const [c, r] = stack[stack.length - 1];
+        const opts = Object.keys(D).filter(k => { const nc = c + D[k][0], nr = r + D[k][1]; return nc >= 0 && nc < COLS && nr >= 0 && nr < ROWS && !cells[nr][nc].v; });
+        if (!opts.length){ stack.pop(); continue; }
+        const k = opts[Math.floor(Math.random() * opts.length)];
+        const nc = c + D[k][0], nr = r + D[k][1];
+        cells[r][c][k] = false; cells[nr][nc][D[k][2]] = false; cells[nr][nc].v = true;
+        stack.push([nc, nr]);
+      }
+      rat.c = rat.r = rat.x = rat.y = rat.tc = rat.tr = 0; rat.moving = false;
+      const extra = Math.max(0, level - (MAXC - 5) * 2);
+      timeLeft = Math.max(7000, (8000 + COLS * ROWS * 100) - extra * 800);
+    }
+    build();
     const openings = (c, r) => ['n', 'e', 's', 'w'].filter(k => !cells[r][c][k]).length;
     function go(k){
-      if (rat.moving || over) return;
+      if (rat.moving || over || flashT > 0) return;
       let c = rat.c, r = rat.r, steps = 0;
       while (!cells[r][c][k]){
         c += D[k][0]; r += D[k][1]; steps++;
@@ -272,18 +316,22 @@ const GAMES = (() => {
     return {
       update(dt){
         if (over) return;
+        if (flashT > 0){ flashT -= dt; if (flashT <= 0){ level++; done++; build(); } inp.swipe = null; inp.btn = null; inp.tap = false; UI.hud('FASE ' + level, 'TEMPO ' + Math.ceil(timeLeft / 1000)); UI.hint('FASE ' + (level + 1) + '!'); return; }
+        UI.hint('');
         timeLeft -= dt;
         if (inp.swipe){ go(inp.swipe); inp.swipe = null; }
         if (inp.btn === 'A'){ go('w'); } else if (inp.btn === 'C'){ go('e'); } else if (inp.btn === 'B'){ go(dir === 'n' ? 's' : 'n'); }
         inp.btn = null; inp.tap = false;
         if (rat.moving){
-          const txp = rat.tc * CS, typ = rat.tr * CS, sp = 0.1 * dt;
+          const txp = rat.tc * CS, typ = rat.tr * CS, sp = 0.11 * dt;
           rat.x += Math.max(-sp, Math.min(sp, txp - rat.x)); rat.y += Math.max(-sp, Math.min(sp, typ - rat.y));
-          if (Math.abs(rat.x - txp) < 0.01 && Math.abs(rat.y - typ) < 0.01){ rat.c = rat.tc; rat.r = rat.tr; rat.x = txp; rat.y = typ; rat.moving = false;
-            if (rat.c === COLS - 1 && rat.r === ROWS - 1){ over = true; won = true; SFX.play('win'); } }
+          if (Math.abs(rat.x - txp) < 0.01 && Math.abs(rat.y - typ) < 0.01){
+            rat.c = rat.tc; rat.r = rat.tr; rat.x = txp; rat.y = typ; rat.moving = false;
+            if (rat.c === COLS - 1 && rat.r === ROWS - 1){ flashT = 900; SFX.play('win'); }
+          }
         }
         if (timeLeft <= 0){ timeLeft = 0; over = true; SFX.play('sad'); }
-        UI.hud('TEMPO ' + Math.ceil(timeLeft / 1000), '');
+        UI.hud('FASE ' + level, 'TEMPO ' + Math.ceil(timeLeft / 1000));
       },
       draw(ctx){
         rect(ctx, 0, 0, W, H, '#c8945c');
@@ -303,7 +351,7 @@ const GAMES = (() => {
         px(ctx, hx - 2, hy - 5, PAL.k); px(ctx, hx + 1, hy - 5, PAL.k); px(ctx, hx, hy - 3, PAL.P);
       },
       over:() => over,
-      result(){ const s = won ? Math.ceil(timeLeft / 1000) : 0; return {score:s, coins:won ? Math.min(30, 10 + Math.floor(s / 3)) : 3}; }
+      result(){ return {score:done, coins:Math.min(45, done * 4)}; }
     };
   }
 
@@ -352,5 +400,5 @@ const GAMES = (() => {
   }
   function button(k){ if (!cur) return false; inp.btn = k; return true; }
   function quit(){ cur = null; UI.clearGameUI(); }
-  return {list, start, active, update, draw, pointer, button, quit, register, inp, F, ratOpts};
+  return {list, start, active, update, draw, pointer, button, quit, register, inp, F, ratOpts, mixColor};
 })();
