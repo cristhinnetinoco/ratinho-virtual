@@ -2214,7 +2214,8 @@ function tick(ms){
   if (S.decor.includes('cofre')) S.bank = Math.min(S.decorTier && S.decorTier.cofre ? 24 : 12, (S.bank || 0) + h);
   S.hygiene = clamp(S.hygiene - (3.5 + S.poops * 0.7) * h * (hasUpgrade('pia') ? 0.7 : 1));
   if (S.sleeping){
-    S.energy = clamp(S.energy + (hasUpgrade('cama') ? 32 : 25) * h);
+    /* enche do zero em 3 h na caixa de fosforo e em 1 h 30 na cama de boneca */
+    S.energy = clamp(S.energy + (hasUpgrade('cama') ? 100 / 1.5 : 100 / 3) * h);
     if (S.energy >= 100){ S.sleeping = false; S.pending.push('woke'); addXp(8); }
   } else {
     S.energy = clamp(S.energy - 6 * h);
