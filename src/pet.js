@@ -28,7 +28,8 @@ function newState(){
     stage:'baby', form:'', care:{hunger:0, energy:0, hygiene:0, fun:0, t:0},
     inv:{queijo:3, semente:3},
     hats:[], hat:'', outfits:[], outfit:'',
-    furn:{}, decor:[], paper:'', skins:['bege'], skin:'bege', room:0,
+    furn:{}, decor:[], decorTier:{}, paper:'', skins:['bege'], skin:'bege', room:0,
+    uses:{}, bank:0, hidden:false,
     stats:{fed:0, played:0, baths:0, meds:0, pets:0, evolutions:0},
     best:{}, sound:true, pending:[]
   };
@@ -52,8 +53,11 @@ function load(){
     S.furn = d.furn || {};
     S.outfits = d.outfits || []; S.outfit = d.outfit || '';
     S.decor = (d.decor || []).filter(k => DECOR[k]);
+    S.decorTier = d.decorTier || {};
+    if (!d.decorTier){ if (S.decor.includes('tv')) S.decorTier.tv = 1; if (S.decor.includes('roda')) S.decorTier.roda = 1; }
+    S.uses = d.uses || {}; S.bank = d.bank || 0; S.hidden = !!d.hidden;
     if (S.paper && !DECOR[S.paper]) S.paper = '';
-    S.room = Math.min(2, Math.max(0, d.room || 0));
+    S.room = Math.min(ROOMS.length - 1, Math.max(0, d.room || 0));
     S.pending = [];
     return true;
   } catch (e) { return false; }
@@ -67,6 +71,7 @@ function importCode(code){
     if (!d || d.v !== 1 || typeof d.hunger !== 'number') return false;
     S = Object.assign(newState(), d);
     S.furn = d.furn || {}; S.outfits = d.outfits || []; S.decor = (d.decor || []).filter(k => DECOR[k]);
+    S.decorTier = d.decorTier || {}; S.uses = d.uses || {}; S.bank = d.bank || 0; S.hidden = !!d.hidden;
     S.pending = [];
     save();
     return true;
@@ -100,7 +105,8 @@ function tick(ms){
   const h = ms / HOUR;
   const sm = S.sleeping ? 0.5 : 1;
   S.hunger  = clamp(S.hunger - 2.2 * h * sm);
-  S.fun     = clamp(S.fun - (2.5 + (S.sick ? 1.5 : 0)) * h * sm);
+  S.fun     = clamp(S.fun - (2.5 + (S.sick ? 1.5 : 0)) * h * sm * (S.hidden ? 0.5 : 1));
+  if (S.decor.includes('cofre')) S.bank = Math.min(S.decorTier && S.decorTier.cofre ? 24 : 12, (S.bank || 0) + h);
   S.hygiene = clamp(S.hygiene - (1.6 + S.poops * 0.7) * h * (hasUpgrade('pia') ? 0.7 : 1));
   if (S.sleeping){
     S.energy = clamp(S.energy + (hasUpgrade('cama') ? 18 : 14) * h);
@@ -216,6 +222,7 @@ function petRat(){
   return {ok:true, msg:''};
 }
 function finishGame(id, score, coins){
+  if (hasUpgrade('estante')) coins += 1;
   S.coins += coins;
   S.fun = clamp(S.fun + 25);
   S.energy = clamp(S.energy - 4);
@@ -224,12 +231,18 @@ function finishGame(id, score, coins){
   if (!S.best[id] || score > S.best[id]) S.best[id] = score;
   save();
 }
-function buy(cat, key){
+function outfitPrice(key){ return Math.max(5, OUTFITS[key].price - (hasUpgrade('comoda') ? 5 : 0)); }
+/* cat: food | hat | outfit | decor | furn | skin ; tier: para decoracoes com duas versoes (0 barata, 1 pet shop) */
+function buy(cat, key, tier){
   let price, owned = false;
   if (cat === 'food'){ price = foodPrice(key); }
   else if (cat === 'hat'){ price = HATS[key].price; owned = S.hats.includes(key); }
-  else if (cat === 'outfit'){ price = OUTFITS[key].price; owned = S.outfits.includes(key); }
-  else if (cat === 'decor'){ price = DECOR[key].price; owned = S.decor.includes(key); }
+  else if (cat === 'outfit'){ price = outfitPrice(key); owned = S.outfits.includes(key); }
+  else if (cat === 'decor'){
+    const d = DECOR[key];
+    if (d.tiers){ tier = tier || 0; price = d.tiers[tier].price; owned = S.decor.includes(key) && decorTier(key) >= tier; }
+    else { price = d.price; owned = S.decor.includes(key); }
+  }
   else if (cat === 'furn'){ price = FURN[key].tiers[1].price; owned = hasUpgrade(key); }
   else if (cat === 'skin'){ price = SKINS[key].price; owned = S.skins.includes(key); }
   if (owned) return {ok:false, msg:'Você já tem esse.'};
@@ -238,7 +251,11 @@ function buy(cat, key){
   if (cat === 'food'){ S.inv[key] = (S.inv[key] || 0) + 1; }
   else if (cat === 'hat'){ S.hats.push(key); S.hat = key; }
   else if (cat === 'outfit'){ S.outfits.push(key); S.outfit = key; }
-  else if (cat === 'decor'){ S.decor.push(key); if (DECOR[key].kind === 'paper') S.paper = key; }
+  else if (cat === 'decor'){
+    if (!S.decor.includes(key)) S.decor.push(key);
+    if (DECOR[key].tiers){ S.decorTier[key] = tier || 0; }
+    if (DECOR[key].kind === 'paper') S.paper = key;
+  }
   else if (cat === 'furn'){ S.furn[key] = 1; }
   else if (cat === 'skin'){ S.skins.push(key); S.skin = key; }
   save();

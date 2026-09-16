@@ -1178,33 +1178,9 @@ function drawRat(ctx, x, y, o){
   ctx.restore();
 }
 
-/* ===== Comodos, moveis (desenhados por codigo) e decoracoes ===== */
+/* ===== Comodos, moveis (desenhados por codigo), decoracoes e interativos ===== */
 Object.assign(SPR, {
-  tv_mini:[
-  '....k......k......',
-  '.....k....k.......',
-  '......k..k........',
-  '.kkkkkkkkkkkkkkkk.',
-  '.kggggggggggggkgk.',
-  '.kgkkkkkkkkkkgkrk.',
-  '.kgkbbbbbbbbkgkgk.',
-  '.kgkbbbwbbbbkgkgk.',
-  '.kgkbbbbbbbbkgkgk.',
-  '.kgkkkkkkkkkkgkkk.',
-  '.kggggggggggggggk.',
-  '.kkkkkkkkkkkkkkkk.',
-  '...kk........kk...'],
-  quadro:[
-  'kkkkkkkkkkkk',
-  'kNNNNNNNNNNk',
-  'kNbbbbbbbbNk',
-  'kNbbbyybbbNk',
-  'kNbbbbbbbbNk',
-  'kNeeeeeeeeNk',
-  'kNeeeeeeeeNk',
-  'kNNNNNNNNNNk',
-  'kkkkkkkkkkkk'],
-  relogio:[
+  relogio_spr:[
   '...kkkk...',
   '..kwwwwk..',
   '.kwwkwwwk.',
@@ -1213,14 +1189,6 @@ Object.assign(SPR, {
   '.kwwwwwwk.',
   '..kwwwwk..',
   '...kkkk...'],
-  prateleira:[
-  '..kkkk..kkkk..kkkk..',
-  '..kyyk..kppk..keek..',
-  '..kyyk..kppk..keek..',
-  '..kkkk..kkkk..kkkk..',
-  'kkkkkkkkkkkkkkkkkkkk',
-  'kNNNNNNNNNNNNNNNNNNk',
-  'kkkkkkkkkkkkkkkkkkkk'],
   patinho:[
   '..kkk...',
   '.kyykk..',
@@ -1228,25 +1196,71 @@ Object.assign(SPR, {
   '.kyyyk..',
   'kkyyyyk.',
   'kyyyyyyk',
-  '.kkkkkk.'],
-  toalha:[
-  '...kk...',
-  '...kk...',
-  '.kkkkkk.',
-  '.kppppk.',
-  '.kppppk.',
-  '.kwwwwk.',
-  '.kppppk.',
-  '.kppppk.',
-  '.kwwwwk.',
-  '.kppppk.',
-  '.kppppk.',
   '.kkkkkk.']
 });
 
-/* ---- desenho procedural dos moveis: (ctx, x, y, w, h, night); x,y = canto superior esquerdo ---- */
 const K = PAL.k;
+function ringRows(ctx, cx, cy, rOut, rIn, color){
+  ctx.fillStyle = color;
+  cx = Math.round(cx); cy = Math.round(cy);
+  for (let dy = -Math.round(rOut); dy <= Math.round(rOut); dy++){
+    const t = dy / (rOut + 0.5); if (t < -1 || t > 1) continue;
+    const ho = rOut * Math.sqrt(Math.max(0, 1 - t * t));
+    const ti = dy / (rIn + 0.5);
+    const hi = Math.abs(ti) < 1 ? rIn * Math.sqrt(1 - ti * ti) : 0;
+    if (hi <= 0){ ctx.fillRect(Math.round(cx - ho), cy + dy, Math.round(cx + ho) - Math.round(cx - ho) + 1, 1); }
+    else {
+      ctx.fillRect(Math.round(cx - ho), cy + dy, Math.max(1, Math.round(cx - hi) - Math.round(cx - ho)), 1);
+      ctx.fillRect(Math.round(cx + hi) + 1, cy + dy, Math.max(1, Math.round(cx + ho) - Math.round(cx + hi)), 1);
+    }
+  }
+}
+/* livros numa prateleira */
+function books(ctx, x, y, w, h){
+  const cols = [PAL.r, PAL.b, PAL.e, PAL.y, PAL.v, PAL.o];
+  let xx = x, i = 0;
+  while (xx < x + w - 2){ const bw = 2 + (i % 2); const bh = h - (i % 3 === 1 ? 2 : 0); rect(ctx, xx, y + h - bh, bw, bh, cols[i % cols.length]); px(ctx, xx, y + h - bh, K); xx += bw + 1; i++; }
+}
+/* vista da janela: ceu conforme a hora de verdade */
+function drawWindowView(ctx, x, y, w, h, t, cat){
+  const hr = new Date().getHours() + new Date().getMinutes() / 60;
+  const night = hr < 6 || hr >= 19, dusk = !night && (hr < 7 || hr >= 17);
+  rect(ctx, x, y, w, h, night ? '#1b1233' : dusk ? '#f5b06c' : '#9ad4f5');
+  if (night){ px(ctx, x + 3, y + 3, PAL.w); px(ctx, x + w - 5, y + 5, PAL.w); px(ctx, x + w / 2, y + 2, PAL.w); fillEllipse(ctx, x + w - 6, y + 6, 3, 3, '#fff3b0'); }
+  else { fillEllipse(ctx, x + w - 6, y + 5, 3, 3, dusk ? PAL.o : PAL.y); }
+  rect(ctx, x, y + h - 4, w, 4, night ? '#2f4149' : '#6ccf7a'); rect(ctx, x, y + h - 4, w, 1, night ? '#3c5361' : '#3c9a4c');
+  if (t != null){
+    const bx = x + ((t / 40) % (w + 10)) - 5;
+    if (!cat){ px(ctx, bx, y + 6, K); px(ctx, bx + 1, y + 5, K); px(ctx, bx + 2, y + 6, K); px(ctx, bx + 6, y + 9, K); px(ctx, bx + 7, y + 8, K); px(ctx, bx + 8, y + 9, K); }
+  }
+  if (cat){ const c = spriteCanvas('gato'); if (c) ctx.drawImage(c, x + Math.floor((w - 16) / 2), y + h - 4 - 12); }
+}
+/* rodinha: parte de tras e parte da frente, para o rato caber dentro */
+function drawWheelBack(ctx, cx, cy, r, colors){
+  fillEllipse(ctx, cx, cy, r + 1, r + 1, K);
+  fillEllipse(ctx, cx, cy, r, r, (colors && colors.inner) || '#e3dff0');
+}
+function drawWheelFront(ctx, cx, cy, r, ang, alpha, colors){
+  const rim = (colors && colors.rim) || PAL.g, spoke = (colors && colors.spoke) || PAL.G;
+  ctx.save();
+  ctx.globalAlpha = alpha == null ? 1 : alpha;
+  ringRows(ctx, cx, cy, r + 1, r - 3, rim);
+  ringRows(ctx, cx, cy, r + 1, r, K);
+  ringRows(ctx, cx, cy, r - 2, r - 3, K);
+  for (let i = 0; i < 6; i++){
+    const a = ang + i * Math.PI / 3;
+    const ex = cx + Math.cos(a) * (r - 3), ey = cy + Math.sin(a) * (r - 3);
+    const n = Math.ceil(r);
+    for (let s = 2; s <= n; s++){ const q = s / n; px(ctx, cx + (ex - cx) * q, cy + (ey - cy) * q, spoke); }
+  }
+  fillEllipse(ctx, cx, cy, 2, 2, K); px(ctx, cx, cy, rim);
+  ctx.restore();
+}
+const WHEEL_COLORS = [null, {rim:PAL.b, spoke:PAL.y, inner:'#dff3ff', base:PAL.r}];
+
+/* ---- desenho dos moveis: (ctx, x, y, w, h, o) ; x,y = canto superior esquerdo; o = {night, t, active, cat, on} ---- */
 const FDRAW = {
+  /* SALA */
   sofa_esponja(ctx, x, y, w, h){
     box(ctx, x, y, w, 7, PAL.E, K); rect(ctx, x + 1, y + 1, w - 2, 2, PAL.e);
     box(ctx, x, y + 6, w, h - 6, PAL.y, K); rect(ctx, x + 1, y + 7, w - 2, 1, '#fff3b0');
@@ -1260,21 +1274,30 @@ const FDRAW = {
     rect(ctx, x + Math.floor(w / 2), y + 9, 1, h - 12, PAL.R); rect(ctx, x + 6, y + 9, w - 12, 1, '#f08a7e');
     rect(ctx, x + 2, y + h - 2, 3, 2, K); rect(ctx, x + w - 5, y + h - 2, 3, 2, K);
   },
-  lum_tampinha(ctx, x, y, w, h){
+  mesinha_tampa(ctx, x, y, w, h){
     const cx = x + Math.floor(w / 2);
-    for (let r = 0; r < 10; r++){ const hw = 3 + Math.round(r * 0.45); rect(ctx, cx - hw - 1, y + r, hw * 2 + 3, 1, K); rect(ctx, cx - hw, y + r, hw * 2 + 1, 1, r < 2 ? '#fff3b0' : PAL.y); }
-    rect(ctx, cx - 7, y + 10, 15, 1, K);
-    rect(ctx, cx - 1, y + 11, 3, h - 17, K); rect(ctx, cx, y + 11, 1, h - 17, PAL.G);
-    box(ctx, x + 1, y + h - 6, w - 2, 6, PAL.r, K); rect(ctx, x + 2, y + h - 5, w - 4, 1, '#f08a7e');
-    for (let i = x + 2; i < x + w - 2; i += 2) px(ctx, i, y + h - 2, PAL.R);
+    box(ctx, cx - 3, y + 6, 7, h - 7, PAL.n, K);
+    oEllipse(ctx, cx, y + 4, Math.floor(w / 2) - 1, 3, PAL.y, K); rect(ctx, cx - Math.floor(w / 2) + 3, y + 3, w - 8, 1, '#fff3b0');
+    px(ctx, cx - 4, y + 5, PAL.Y); px(ctx, cx + 3, y + 5, PAL.Y);
   },
-  lum_abajur(ctx, x, y, w, h){
-    const cx = x + Math.floor(w / 2);
-    for (let r = 0; r < 12; r++){ const hw = 3 + Math.round(r * 0.36); rect(ctx, cx - hw - 1, y + r, hw * 2 + 3, 1, K); rect(ctx, cx - hw, y + r, hw * 2 + 1, 1, r < 2 ? '#fbd4e2' : PAL.p); }
-    rect(ctx, cx - 8, y + 12, 17, 1, K); for (let i = cx - 7; i <= cx + 7; i += 2) px(ctx, i, y + 13, PAL.P);
-    rect(ctx, cx - 1, y + 14, 3, h - 19, K); rect(ctx, cx, y + 14, 1, h - 19, PAL.G);
-    oEllipse(ctx, cx, y + h - 3, 6, 2, PAL.n, K); rect(ctx, cx - 3, y + h - 4, 6, 1, '#d19a63');
+  mesinha_madeira(ctx, x, y, w, h){
+    box(ctx, x, y + 3, w, 4, PAL.n, K); rect(ctx, x + 1, y + 4, w - 2, 1, '#d19a63');
+    box(ctx, x + 2, y + 6, 3, h - 6, PAL.N, K); box(ctx, x + w - 5, y + 6, 3, h - 6, PAL.N, K);
+    box(ctx, x + w - 10, y - 2, 5, 5, PAL.b, K); px(ctx, x + w - 9, y - 1, '#9ad4f5');
   },
+  estante_fosforo(ctx, x, y, w, h){
+    for (let i = 0; i < 3; i++){
+      const yy = y + i * 10;
+      box(ctx, x, yy, w, 10, PAL.o, K); rect(ctx, x + 1, yy + 1, w - 2, 1, '#f9b36c'); rect(ctx, x + 1, yy + 8, w - 2, 1, PAL.R);
+      books(ctx, x + 2, yy + 2, w - 4, 6);
+    }
+  },
+  estante_madeira(ctx, x, y, w, h){
+    box(ctx, x, y, w, h, PAL.n, K); rect(ctx, x + 1, y + 1, 1, h - 2, '#d19a63');
+    for (let i = 0; i < 3; i++){ const yy = y + 2 + i * 10; rect(ctx, x + 2, yy, w - 4, 8, PAL.N); books(ctx, x + 3, yy + 1, w - 6, 7); rect(ctx, x + 1, yy + 8, w - 2, 2, PAL.n); }
+    rect(ctx, x + 1, y + h - 2, w - 2, 1, PAL.N);
+  },
+  /* QUARTO */
   cama_fosforo(ctx, x, y, w, h){
     box(ctx, x, y + 7, w, h - 7, PAL.o, K); rect(ctx, x + 1, y + 8, w - 2, 1, '#f9b36c');
     rect(ctx, x + 1, y + h - 4, w - 2, 2, PAL.R); for (let i = x + 2; i < x + w - 2; i += 3) px(ctx, i, y + h - 3, '#c94a3f');
@@ -1296,6 +1319,32 @@ const FDRAW = {
     rect(ctx, x + 6, y + 17, w - 10, 2, PAL.N);
     rect(ctx, x + 2, y + h - 4, 3, 4, K); rect(ctx, x + w - 5, y + h - 4, 3, 4, K);
   },
+  comoda_caixa(ctx, x, y, w, h){
+    box(ctx, x, y + 2, w, h - 2, '#e0c9a3', K); rect(ctx, x + 1, y + 3, w - 2, 1, '#f0dcbb'); rect(ctx, x + 1, y + 6, w - 2, 1, '#b8955f');
+    box(ctx, x + 3, y + 8, w - 6, 5, '#e0c9a3', '#8a6a3f'); box(ctx, x + 3, y + 14, w - 6, 5, '#e0c9a3', '#8a6a3f');
+    rect(ctx, x + Math.floor(w / 2) - 1, y + 10, 2, 1, K); rect(ctx, x + Math.floor(w / 2) - 1, y + 16, 2, 1, K);
+  },
+  comoda_madeira(ctx, x, y, w, h){
+    box(ctx, x, y, w, h - 3, PAL.n, K); rect(ctx, x + 1, y + 1, w - 2, 1, '#d19a63');
+    for (let i = 0; i < 3; i++){ const yy = y + 3 + i * 6; box(ctx, x + 2, yy, w - 4, 6, PAL.n, PAL.N); rect(ctx, x + Math.floor(w / 2) - 1, yy + 2, 2, 2, PAL.y); }
+    rect(ctx, x + 2, y + h - 3, 3, 3, K); rect(ctx, x + w - 5, y + h - 3, 3, 3, K);
+  },
+  lum_tampinha(ctx, x, y, w, h){
+    const cx = x + Math.floor(w / 2);
+    for (let r = 0; r < 10; r++){ const hw = 3 + Math.round(r * 0.45); rect(ctx, cx - hw - 1, y + r, hw * 2 + 3, 1, K); rect(ctx, cx - hw, y + r, hw * 2 + 1, 1, r < 2 ? '#fff3b0' : PAL.y); }
+    rect(ctx, cx - 7, y + 10, 15, 1, K);
+    rect(ctx, cx - 1, y + 11, 3, h - 17, K); rect(ctx, cx, y + 11, 1, h - 17, PAL.G);
+    box(ctx, x + 1, y + h - 6, w - 2, 6, PAL.r, K); rect(ctx, x + 2, y + h - 5, w - 4, 1, '#f08a7e');
+    for (let i = x + 2; i < x + w - 2; i += 2) px(ctx, i, y + h - 2, PAL.R);
+  },
+  lum_abajur(ctx, x, y, w, h){
+    const cx = x + Math.floor(w / 2);
+    for (let r = 0; r < 12; r++){ const hw = 3 + Math.round(r * 0.36); rect(ctx, cx - hw - 1, y + r, hw * 2 + 3, 1, K); rect(ctx, cx - hw, y + r, hw * 2 + 1, 1, r < 2 ? '#fbd4e2' : PAL.p); }
+    rect(ctx, cx - 8, y + 12, 17, 1, K); for (let i = cx - 7; i <= cx + 7; i += 2) px(ctx, i, y + 13, PAL.P);
+    rect(ctx, cx - 1, y + 14, 3, h - 19, K); rect(ctx, cx, y + 14, 1, h - 19, PAL.G);
+    oEllipse(ctx, cx, y + h - 3, 6, 2, PAL.n, K); rect(ctx, cx - 3, y + h - 4, 6, 1, '#d19a63');
+  },
+  /* COZINHA */
   gel_caixaleite(ctx, x, y, w, h){
     const cx = x + Math.floor(w / 2);
     for (let r = 0; r < 6; r++){ const hw = 3 + r; rect(ctx, cx - hw - 1, y + r, hw * 2 + 3, 1, K); rect(ctx, cx - hw, y + r, hw * 2 + 1, 1, PAL.w); }
@@ -1349,6 +1398,7 @@ const FDRAW = {
     oEllipse(ctx, x + 13, y + 7, 7, 2, PAL.w, K); drawSpr(ctx, 'queijo', x + 9, y);
     box(ctx, x + w - 12, y + 2, 6, 6, PAL.b, K); rect(ctx, x + w - 11, y + 3, 1, 3, '#9ad4f5'); rect(ctx, x + w - 6, y + 4, 2, 2, K);
   },
+  /* BANHEIRO */
   banheira_lata(ctx, x, y, w, h){
     box(ctx, x, y + 4, w, h - 4, PAL.g, K);
     rect(ctx, x + 2, y + 6, w - 4, 5, PAL.b); rect(ctx, x + 3, y + 7, 6, 1, '#9ad4f5'); px(ctx, x + w - 8, y + 8, '#9ad4f5');
@@ -1391,117 +1441,243 @@ const FDRAW = {
     box(ctx, x + 8, y + 16, 9, h - 16, PAL.w, K);
     oEllipse(ctx, x + 12, y + 14, 7, 4, PAL.w, K); fillEllipse(ctx, x + 12, y + 14, 4, 2, PAL.b);
     rect(ctx, x + 6, y + h - 2, 13, 2, K);
+  },
+  /* ---- decoracoes de parede ---- */
+  poster(ctx, x, y, w, h){
+    box(ctx, x, y, w, h, PAL.w, K);
+    rect(ctx, x + 2, y + 2, w - 4, h - 4, '#fff6e0'); rect(ctx, x + 2, y + 2, w - 4, 1, '#e3dff0'); rect(ctx, x + 2, y + 2, 1, h - 4, '#e3dff0');
+    const c = spriteCanvas('queijo'); if (c){ ctx.drawImage(c, x + Math.floor((w - 16) / 2), y + 5, 16, 16); }
+    rect(ctx, x + 3, y + h - 7, w - 6, 4, PAL.r);
+    for (let i = x + 5; i < x + w - 5; i += 3) rect(ctx, i, y + h - 6, 2, 2, PAL.w);
+    px(ctx, x + 1, y + 1, PAL.b); px(ctx, x + w - 2, y + 1, PAL.b); px(ctx, x + 1, y + h - 2, PAL.b); px(ctx, x + w - 2, y + h - 2, PAL.b);
+  },
+  quadro(ctx, x, y, w, h){
+    box(ctx, x, y, w, h, PAL.N, K); rect(ctx, x + 1, y + 1, w - 2, 1, '#d19a63'); rect(ctx, x + 1, y + 1, 1, h - 2, '#d19a63');
+    rect(ctx, x + 3, y + 3, w - 6, h - 6, PAL.b);
+    fillEllipse(ctx, x + w - 8, y + 7, 3, 3, PAL.y);
+    fillEllipse(ctx, x + 8, y + h - 5, 8, 4, PAL.e); fillEllipse(ctx, x + w - 9, y + h - 4, 9, 4, PAL.E);
+    rect(ctx, x + 3, y + h - 5, w - 6, 2, PAL.E);
+    px(ctx, x + 6, y + 6, PAL.w); px(ctx, x + 7, y + 6, PAL.w); px(ctx, x + 12, y + 8, PAL.w);
+  },
+  relogio(ctx, x, y, w, h){
+    const r = Math.floor(Math.min(w, h) / 2) - 1, cx = x + r + 1, cy = y + r + 1;
+    oEllipse(ctx, cx, cy, r, r, PAL.w, K); ringRows(ctx, cx, cy, r, r - 1, PAL.n);
+    px(ctx, cx, cy - r + 2, K); px(ctx, cx, cy + r - 2, K); px(ctx, cx - r + 2, cy, K); px(ctx, cx + r - 2, cy, K);
+    const d = new Date(), hm = (d.getHours() % 12) / 12 * Math.PI * 2 + d.getMinutes() / 60 * Math.PI / 6, mm = d.getMinutes() / 60 * Math.PI * 2;
+    const hand = (a, len, col) => { for (let s = 0; s <= len; s++) px(ctx, cx + Math.sin(a) * s, cy - Math.cos(a) * s, col); };
+    hand(hm, r - 4, K); hand(mm, r - 2, PAL.r); px(ctx, cx, cy, K);
+  },
+  prateleira(ctx, x, y, w, h){
+    const jars = [[PAL.y, PAL.Y], [PAL.p, PAL.P], [PAL.e, PAL.E]];
+    const jw = 7, gap = Math.floor((w - 2 - jars.length * jw) / (jars.length + 1));
+    jars.forEach((c, i) => {
+      const jx = x + 1 + gap + i * (jw + gap), jy = y;
+      rect(ctx, jx + 1, jy, jw - 2, 2, K);
+      box(ctx, jx, jy + 2, jw, h - 6, c[0], K); rect(ctx, jx + 1, jy + 4, 1, h - 9, '#fffaf0'); rect(ctx, jx + 2, jy + h - 6, jw - 4, 1, c[1]);
+    });
+    box(ctx, x, y + h - 4, w, 4, PAL.n, K); rect(ctx, x + 1, y + h - 2, w - 2, 1, PAL.N);
+  },
+  toalha(ctx, x, y, w, h){
+    rect(ctx, x + Math.floor(w / 2) - 1, y, 3, 3, PAL.G); px(ctx, x + Math.floor(w / 2), y + 1, K);
+    box(ctx, x, y + 3, w, h - 3, PAL.p, K);
+    for (let yy = y + 6; yy < y + h - 2; yy += 4) rect(ctx, x + 1, yy, w - 2, 1, PAL.w);
+    rect(ctx, x + 1, y + h - 3, w - 2, 1, PAL.P); rect(ctx, x + Math.floor(w / 2), y + 4, 1, h - 6, PAL.P);
+  },
+  planta(ctx, x, y, w, h){ const c = spriteCanvas('planta'); if (c) ctx.drawImage(c, x, y + h - c.height); },
+  /* ---- interativos ---- */
+  roda(ctx, x, y, w, h){
+    const r = Math.floor(Math.min(w, h - 6) / 2) - 1, cx = x + Math.floor(w / 2), cy = y + r + 1;
+    rect(ctx, cx - 1, cy, 3, h - 4 - (cy - y), PAL.N); rect(ctx, cx - 2, cy, 5, 1, K);
+    drawWheelBack(ctx, cx, cy, r); drawWheelFront(ctx, cx, cy, r, 0.3);
+    box(ctx, cx - 8, y + h - 5, 17, 5, PAL.N, K);
+  },
+  roda_petshop(ctx, x, y, w, h){
+    const r = Math.floor(Math.min(w, h - 6) / 2) - 1, cx = x + Math.floor(w / 2), cy = y + r + 1, col = WHEEL_COLORS[1];
+    rect(ctx, cx - 1, cy, 3, h - 4 - (cy - y), PAL.R); rect(ctx, cx - 2, cy, 5, 1, K);
+    drawWheelBack(ctx, cx, cy, r, col); drawWheelFront(ctx, cx, cy, r, 0.3, null, col);
+    box(ctx, cx - 8, y + h - 5, 17, 5, col.base, K);
+  },
+  bebedouro_pet(ctx, x, y, w, h, o){
+    const cx = x + Math.floor(w / 2);
+    rect(ctx, cx - 4, y, 9, 1, PAL.G); rect(ctx, cx, y, 1, 3, PAL.G);
+    box(ctx, x + 1, y + 3, w - 2, h - 10, '#eaf6fa', K); rect(ctx, x + 2, y + 4, 1, h - 12, PAL.w);
+    const lvl = o && o.active ? 0.55 : 0.7;
+    rect(ctx, x + 2, y + 3 + Math.round((h - 10) * (1 - lvl)), w - 4, Math.round((h - 10) * lvl) - 1, PAL.b);
+    if (o && o.active && o.t != null){ const bt = Math.floor(o.t / 200) % 4; px(ctx, cx - 1, y + h - 12 - bt * 3, '#dff3ff'); px(ctx, cx + 1, y + h - 8 - bt * 2, '#dff3ff'); }
+    box(ctx, cx - 3, y + 2, 7, 3, PAL.b, K);
+    rect(ctx, cx - 1, y + h - 7, 3, 7, K); rect(ctx, cx, y + h - 7, 1, 6, PAL.r);
+  },
+  bebedouro_petshop(ctx, x, y, w, h, o){
+    const cx = x + Math.floor(w / 2);
+    rect(ctx, cx - 5, y + 2, 11, 2, PAL.G); rect(ctx, cx - 5, y + 4, 2, 6, PAL.G);
+    for (let r = 0; r < 4; r++){ const hw = 2 + r; rect(ctx, cx - hw - 1, y + 4 + r, hw * 2 + 3, 1, K); rect(ctx, cx - hw, y + 4 + r, hw * 2 + 1, 1, '#eaf6fa'); }
+    box(ctx, x + 1, y + 8, w - 2, h - 15, '#eaf6fa', K); rect(ctx, x + 2, y + 9, 1, h - 17, PAL.w);
+    const lvl = o && o.active ? 0.5 : 0.65;
+    rect(ctx, x + 2, y + 8 + Math.round((h - 15) * (1 - lvl)), w - 4, Math.round((h - 15) * lvl) - 1, PAL.b);
+    if (o && o.active && o.t != null){ const bt = Math.floor(o.t / 200) % 4; px(ctx, cx, y + h - 12 - bt * 3, '#dff3ff'); }
+    box(ctx, cx - 3, y, 7, 4, PAL.r, K);
+    rect(ctx, cx - 1, y + h - 7, 3, 7, K); rect(ctx, cx, y + h - 7, 1, 6, PAL.G);
+  },
+  pote_maionese(ctx, x, y, w, h){
+    box(ctx, x, y + h - 4, w, 4, PAL.n, K);
+    box(ctx, x + 2, y + 2, w - 4, h - 6, '#eaf6fa', K); rect(ctx, x + 3, y + 3, 1, h - 8, PAL.w);
+    rect(ctx, x + 3, y + h - 10, w - 6, 5, PAL.y); px(ctx, x + 5, y + h - 9, PAL.Y); px(ctx, x + w - 6, y + h - 8, PAL.Y);
+    box(ctx, x + 1, y, w - 2, 3, PAL.G, K);
+  },
+  pote_biscoito(ctx, x, y, w, h){
+    box(ctx, x, y + h - 4, w, 4, PAL.n, K);
+    box(ctx, x + 2, y + 3, w - 4, h - 7, PAL.p, K); rect(ctx, x + 3, y + 4, 1, h - 9, '#fbd4e2');
+    rect(ctx, x + 4, y + 7, w - 8, 4, PAL.w); px(ctx, x + 6, y + 8, PAL.n); px(ctx, x + 8, y + 8, PAL.n); px(ctx, x + 7, y + 9, PAL.n);
+    box(ctx, x + 1, y, w - 2, 4, PAL.P, K); px(ctx, x + Math.floor(w / 2), y - 1, K);
+  },
+  rede_meia(ctx, x, y, w, h, o){
+    const sw = o && o.active ? Math.round(Math.sin((o.t || 0) / 400) * 2) : 0;
+    rect(ctx, x, y, 2, 3, PAL.G); rect(ctx, x + w - 2, y, 2, 3, PAL.G);
+    for (let i = 0; i <= 8; i++){ const q = i / 8; px(ctx, x + 1 + (w / 2 - 6 - 1) * q, y + 2 + 5 * q, K); px(ctx, x + w - 2 - (w / 2 - 6 - 1) * q, y + 2 + 5 * q, K); }
+    const bx = x + Math.floor(w / 2) - 10 + sw, by = y + 6;
+    box(ctx, bx, by, 20, h - 8, PAL.g, K); rect(ctx, bx + 1, by + 1, 18, 1, '#e3dff0');
+    rect(ctx, bx + 2, by + h - 11, 16, 1, PAL.G); box(ctx, bx + 14, by + 2, 6, h - 10, PAL.w, K);
+  },
+  rede_pet(ctx, x, y, w, h, o){
+    const sw = o && o.active ? Math.round(Math.sin((o.t || 0) / 400) * 2) : 0;
+    rect(ctx, x, y, 2, 3, PAL.G); rect(ctx, x + w - 2, y, 2, 3, PAL.G);
+    for (let i = 0; i <= 8; i++){ const q = i / 8; px(ctx, x + 1 + (w / 2 - 12) * q, y + 2 + 5 * q, PAL.N); px(ctx, x + w - 2 - (w / 2 - 12) * q, y + 2 + 5 * q, PAL.N); }
+    const bx = x + Math.floor(w / 2) - 12 + sw, by = y + 6;
+    for (let r = 0; r < h - 8; r++){ const hw = 12 - Math.round(r * 0.5); rect(ctx, bx + 12 - hw - 1, by + r, hw * 2 + 3, 1, K); rect(ctx, bx + 12 - hw, by + r, hw * 2 + 1, 1, (r % 3 === 1) ? PAL.w : PAL.p); }
+  },
+  casinha_sapato(ctx, x, y, w, h, o){
+    box(ctx, x, y + 4, w, h - 4, '#e0c9a3', K); rect(ctx, x + 1, y + 5, w - 2, 1, '#f0dcbb');
+    box(ctx, x - 1, y, w + 2, 5, '#c9ad80', K);
+    fillEllipse(ctx, x + Math.floor(w / 2), y + h - 8, 6, 6, K); fillEllipse(ctx, x + Math.floor(w / 2), y + h - 8, 5, 5, '#2a2140');
+    if (o && o.hidden){ const bl = Math.floor((o.t || 0) / 1500) % 5 === 0; if (!bl){ rect(ctx, x + Math.floor(w / 2) - 3, y + h - 9, 2, 2, PAL.w); rect(ctx, x + Math.floor(w / 2) + 2, y + h - 9, 2, 2, PAL.w); } }
+  },
+  casinha_madeira(ctx, x, y, w, h, o){
+    const cx = x + Math.floor(w / 2);
+    box(ctx, x + 2, y + 8, w - 4, h - 8, PAL.n, K); rect(ctx, x + 3, y + 9, 1, h - 10, '#d19a63');
+    for (let r = 0; r < 9; r++){ const hw = Math.round((w / 2) * r / 8); rect(ctx, cx - hw - 1, y + r, hw * 2 + 3, 1, K); rect(ctx, cx - hw, y + r, hw * 2 + 1, 1, r % 2 ? PAL.R : PAL.r); }
+    box(ctx, x + w - 9, y + 11, 5, 5, PAL.y, K); rect(ctx, x + w - 7, y + 11, 1, 5, K); rect(ctx, x + w - 9, y + 13, 5, 1, K);
+    fillEllipse(ctx, cx - 3, y + h - 7, 6, 6, K); fillEllipse(ctx, cx - 3, y + h - 7, 5, 5, '#2a2140');
+    if (o && o.hidden){ const bl = Math.floor((o.t || 0) / 1500) % 5 === 0; if (!bl){ rect(ctx, cx - 6, y + h - 8, 2, 2, PAL.w); rect(ctx, cx - 1, y + h - 8, 2, 2, PAL.w); } }
+  },
+  roer_rolha(ctx, x, y, w, h){
+    box(ctx, x, y, w, h, PAL.n, K); rect(ctx, x + 1, y + 1, w - 2, 1, '#d19a63');
+    rect(ctx, x + 1, y + 2, 1, h - 3, PAL.N); rect(ctx, x + w - 2, y + 2, 1, h - 3, PAL.N);
+    px(ctx, x + 4, y + 3, PAL.N); px(ctx, x + 7, y + 5, PAL.N); px(ctx, x + 5, y + 6, PAL.N);
+  },
+  roer_osso(ctx, x, y, w, h){
+    const cy = y + Math.floor(h / 2);
+    oEllipse(ctx, x + 3, cy - 2, 2, 2, PAL.y, K); oEllipse(ctx, x + 3, cy + 2, 2, 2, PAL.y, K);
+    oEllipse(ctx, x + w - 4, cy - 2, 2, 2, PAL.y, K); oEllipse(ctx, x + w - 4, cy + 2, 2, 2, PAL.y, K);
+    box(ctx, x + 3, cy - 2, w - 6, 5, PAL.b, K); rect(ctx, x + 4, cy - 1, w - 8, 1, '#9ad4f5');
+  },
+  tv_papelao(ctx, x, y, w, h, o){
+    rect(ctx, x + 3, y, 1, 4, PAL.G); rect(ctx, x + w - 4, y, 1, 4, PAL.G);
+    box(ctx, x, y + 4, w, h - 4, '#e0c9a3', K); rect(ctx, x + 1, y + 5, w - 2, 1, '#f0dcbb');
+    box(ctx, x + 2, y + 6, w - 7, h - 8, o && o.on ? '#1b1233' : PAL.w, K);
+    if (o && o.on) tvShow(ctx, x + 3, y + 7, w - 9, h - 10, o.t || 0);
+    px(ctx, x + w - 3, y + 8, K); px(ctx, x + w - 3, y + 11, K);
+  },
+  tv_mini(ctx, x, y, w, h, o){
+    px(ctx, x + 4, y, K); px(ctx, x + 5, y + 1, K); px(ctx, x + 6, y + 2, K); px(ctx, x + w - 5, y, K); px(ctx, x + w - 6, y + 1, K); px(ctx, x + w - 7, y + 2, K);
+    box(ctx, x, y + 3, w, h - 5, PAL.g, K); rect(ctx, x + 1, y + 4, w - 2, 1, '#e3dff0');
+    box(ctx, x + 2, y + 5, w - 7, h - 9, o && o.on ? '#1b1233' : PAL.b, K);
+    if (o && o.on) tvShow(ctx, x + 3, y + 6, w - 9, h - 11, o.t || 0); else px(ctx, x + 4, y + 7, PAL.w);
+    px(ctx, x + w - 3, y + 7, PAL.r); px(ctx, x + w - 3, y + 10, PAL.G);
+    rect(ctx, x + 3, y + h - 2, 2, 2, K); rect(ctx, x + w - 5, y + h - 2, 2, 2, K);
+  },
+  radio_fosforo(ctx, x, y, w, h, o){
+    rect(ctx, x + w - 3, y, 1, 5, PAL.G); px(ctx, x + w - 3, y, K);
+    box(ctx, x, y + 4, w, h - 4, PAL.o, K); rect(ctx, x + 1, y + 5, w - 2, 1, '#f9b36c'); rect(ctx, x + 1, y + h - 3, w - 2, 2, PAL.R);
+    for (let yy = y + 7; yy < y + h - 4; yy += 2) for (let xx = x + 2; xx < x + w - 7; xx += 2) px(ctx, xx, yy, K);
+    oEllipse(ctx, x + w - 5, y + 9, 2, 2, PAL.y, K);
+    if (o && o.on) notes(ctx, x + w, y, o.t || 0);
+  },
+  radio_vitrola(ctx, x, y, w, h, o){
+    box(ctx, x, y + 6, w, h - 6, PAL.n, K); rect(ctx, x + 1, y + 7, w - 2, 1, '#d19a63');
+    const spin = o && o.on ? Math.floor((o.t || 0) / 150) % 4 : 0;
+    oEllipse(ctx, x + 8, y + 6, 7, 3, PAL.x, K); px(ctx, x + 8 + (spin === 1 ? 2 : spin === 3 ? -2 : 0), y + 6 + (spin === 2 ? 1 : 0), PAL.r);
+    rect(ctx, x + w - 5, y + 2, 1, 6, PAL.G); rect(ctx, x + w - 8, y + 2, 4, 1, PAL.G); px(ctx, x + w - 8, y + 3, K);
+    for (let yy = y + 9; yy < y + h - 2; yy += 2) for (let xx = x + 3; xx < x + w - 3; xx += 2) px(ctx, xx, yy, PAL.N);
+    if (o && o.on) notes(ctx, x + w, y, o.t || 0);
+  },
+  janela_buraco(ctx, x, y, w, h, o){
+    fillEllipse(ctx, x + w / 2, y + h / 2, w / 2, h / 2, K);
+    ctx.save(); ctx.beginPath(); ctx.ellipse(x + w / 2, y + h / 2, w / 2 - 1, h / 2 - 1, 0, 0, Math.PI * 2); ctx.clip();
+    drawWindowView(ctx, x, y, w, h, o && o.active ? o.t : null, o && o.cat);
+    ctx.restore();
+    px(ctx, x + 3, y + 2, K); px(ctx, x + w - 4, y + h - 3, K);
+  },
+  janela_moldura(ctx, x, y, w, h, o){
+    box(ctx, x, y, w, h, PAL.w, K);
+    drawWindowView(ctx, x + 3, y + 3, w - 6, h - 6, o && o.active ? o.t : null, o && o.cat);
+    rect(ctx, x + Math.floor(w / 2), y + 3, 1, h - 6, K); rect(ctx, x + 3, y + Math.floor(h / 2), w - 6, 1, K);
+    rect(ctx, x + 1, y + 1, 4, h - 2, PAL.p); rect(ctx, x + w - 5, y + 1, 4, h - 2, PAL.p);
+    rect(ctx, x + 1, y + 1, w - 2, 1, PAL.P);
+  },
+  chuveiro_regador(ctx, x, y, w, h, o){
+    rect(ctx, x + 2, y, w - 4, 2, PAL.G); rect(ctx, x + Math.floor(w / 2), y + 2, 1, 4, PAL.G);
+    oEllipse(ctx, x + Math.floor(w / 2), y + 12, 6, 6, PAL.e, K); rect(ctx, x + Math.floor(w / 2) - 3, y + 8, 6, 1, '#a8e6b0');
+    rect(ctx, x + Math.floor(w / 2) - 1, y + 3, 3, 5, K); rect(ctx, x + Math.floor(w / 2), y + 3, 1, 5, PAL.e);
+    rect(ctx, x + Math.floor(w / 2) + 5, y + 14, 5, 2, K); rect(ctx, x + Math.floor(w / 2) + 9, y + 15, 2, 4, K); rect(ctx, x + Math.floor(w / 2) + 8, y + 19, 4, 2, PAL.E);
+    if (o && o.active && o.t != null){ for (let i = 0; i < 5; i++){ const dy = ((o.t / 60) + i * 7) % 30; px(ctx, x + Math.floor(w / 2) + 7 + (i % 3), y + 21 + dy, PAL.b); } }
+  },
+  chuveiro_brinquedo(ctx, x, y, w, h, o){
+    rect(ctx, x + Math.floor(w / 2) - 1, y, 3, 10, K); rect(ctx, x + Math.floor(w / 2), y, 1, 10, PAL.G);
+    for (let r = 0; r < 5; r++){ const hw = 2 + r; rect(ctx, x + Math.floor(w / 2) - hw - 1, y + 9 + r, hw * 2 + 3, 1, K); rect(ctx, x + Math.floor(w / 2) - hw, y + 9 + r, hw * 2 + 1, 1, PAL.g); }
+    for (let i = -4; i <= 4; i += 2) px(ctx, x + Math.floor(w / 2) + i, y + 14, PAL.G);
+    if (o && o.active && o.t != null){ for (let i = 0; i < 7; i++){ const dy = ((o.t / 60) + i * 5) % 28; px(ctx, x + Math.floor(w / 2) - 5 + i * 2 - (i % 2), y + 15 + dy, PAL.b); } }
+  },
+  cofre_lata(ctx, x, y, w, h, o){
+    box(ctx, x, y + 2, w, h - 2, PAL.g, K); rect(ctx, x + 1, y + 3, 1, h - 4, '#e3dff0');
+    rect(ctx, x + 1, y + 5, w - 2, 5, PAL.b); rect(ctx, x + 2, y + 6, w - 4, 3, PAL.w); px(ctx, x + 4, y + 7, PAL.b); px(ctx, x + w - 5, y + 7, PAL.b);
+    rect(ctx, x + Math.floor(w / 2) - 2, y + 1, 5, 1, K);
+    if (o && o.coins) drawSpr(ctx, 'moeda', x + w - 4, y - 6);
+  },
+  cofre_porco(ctx, x, y, w, h, o){
+    oEllipse(ctx, x + Math.floor(w / 2), y + Math.floor(h / 2) + 1, Math.floor(w / 2) - 1, Math.floor(h / 2) - 2, PAL.p, K);
+    px(ctx, x + 3, y + 2, K); px(ctx, x + 4, y + 1, PAL.p); px(ctx, x + w - 5, y + 1, PAL.p); px(ctx, x + w - 4, y + 2, K);
+    rect(ctx, x + Math.floor(w / 2) - 2, y + 2, 5, 1, K);
+    box(ctx, x + w - 5, y + 5, 4, 3, PAL.P, K); px(ctx, x + 2, y + 5, K);
+    rect(ctx, x + 3, y + h - 2, 2, 2, K); rect(ctx, x + w - 5, y + h - 2, 2, 2, K);
+    if (o && o.coins) drawSpr(ctx, 'moeda', x + w - 3, y - 7);
   }
 };
-/* rodinha de correr: parada (com base) ou rolando com o rato dentro */
-function ringRows(ctx, cx, cy, rOut, rIn, color){
-  ctx.fillStyle = color;
-  cx = Math.round(cx); cy = Math.round(cy);
-  for (let dy = -Math.round(rOut); dy <= Math.round(rOut); dy++){
-    const t = dy / (rOut + 0.5); if (t < -1 || t > 1) continue;
-    const ho = rOut * Math.sqrt(Math.max(0, 1 - t * t));
-    const ti = dy / (rIn + 0.5);
-    const hi = Math.abs(ti) < 1 ? rIn * Math.sqrt(1 - ti * ti) : 0;
-    if (hi <= 0){ ctx.fillRect(Math.round(cx - ho), cy + dy, Math.round(cx + ho) - Math.round(cx - ho) + 1, 1); }
-    else {
-      ctx.fillRect(Math.round(cx - ho), cy + dy, Math.max(1, Math.round(cx - hi) - Math.round(cx - ho)), 1);
-      ctx.fillRect(Math.round(cx + hi) + 1, cy + dy, Math.max(1, Math.round(cx + ho) - Math.round(cx + hi)), 1);
-    }
-  }
+function tvShow(ctx, x, y, w, h, t){
+  const f = Math.floor(t / 700) % 3;
+  if (f === 0){ rect(ctx, x, y, w, h, '#9ad4f5'); const c = spriteCanvas('queijo'); if (c) ctx.drawImage(c, x + Math.floor((w - 8) / 2) + Math.round(Math.sin(t / 150) * 2), y + Math.floor((h - 8) / 2)); }
+  else if (f === 1){ for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) if (((xx * 7 + yy * 13 + Math.floor(t / 80)) % 5) === 0) px(ctx, xx, yy, PAL.g); }
+  else { rect(ctx, x, y, w, h, PAL.y); const c = spriteCanvas('ic_brincar'); if (c) ctx.drawImage(c, x + Math.floor((w - 10) / 2), y + Math.floor((h - 10) / 2)); }
 }
-/* rodinha de correr: parte de tras (disco), e parte da frente (aro + raios), para o rato caber dentro */
-function drawWheelBack(ctx, cx, cy, r){
-  fillEllipse(ctx, cx, cy, r + 1, r + 1, K);
-  fillEllipse(ctx, cx, cy, r, r, '#e3dff0');
+function notes(ctx, x, y, t){
+  for (let i = 0; i < 3; i++){ const ph = ((t / 700) + i * 0.33) % 1; drawSpr(ctx, 'nota', x - 2 + i * 4, y - 4 - ph * 14, {alpha:1 - ph, remap:{k:[PAL.r, PAL.b, PAL.y][i]}}); }
 }
-function drawWheelFront(ctx, cx, cy, r, ang, alpha){
-  ctx.save();
-  ctx.globalAlpha = alpha == null ? 1 : alpha;
-  ringRows(ctx, cx, cy, r + 1, r - 3, PAL.g);
-  ringRows(ctx, cx, cy, r + 1, r, K);
-  ringRows(ctx, cx, cy, r - 2, r - 3, K);
-  for (let i = 0; i < 6; i++){
-    const a = ang + i * Math.PI / 3;
-    const ex = cx + Math.cos(a) * (r - 3), ey = cy + Math.sin(a) * (r - 3);
-    const n = Math.ceil(r);
-    for (let s = 2; s <= n; s++){ const t = s / n; px(ctx, cx + (ex - cx) * t, cy + (ey - cy) * t, PAL.G); }
-  }
-  fillEllipse(ctx, cx, cy, 2, 2, K); px(ctx, cx, cy, PAL.g);
-  ctx.restore();
-}
-FDRAW.roda = function(ctx, x, y, w, h){
-  const r = Math.floor(Math.min(w, h - 6) / 2) - 1, cx = x + Math.floor(w / 2), cy = y + r + 1;
-  rect(ctx, cx - 1, cy, 3, h - 4 - (cy - y), PAL.N); rect(ctx, cx - 2, cy, 5, 1, K);
-  drawWheelBack(ctx, cx, cy, r);
-  drawWheelFront(ctx, cx, cy, r, 0.3);
-  box(ctx, cx - 8, y + h - 5, 17, 5, PAL.N, K);
-};
-/* ---- decoracoes de parede (desenhadas por codigo) ---- */
-FDRAW.poster = function(ctx, x, y, w, h){
-  box(ctx, x, y, w, h, PAL.w, K);
-  rect(ctx, x + 2, y + 2, w - 4, h - 4, '#fff6e0'); rect(ctx, x + 2, y + 2, w - 4, 1, '#e3dff0'); rect(ctx, x + 2, y + 2, 1, h - 4, '#e3dff0');
-  const c = spriteCanvas('queijo'); if (c){ ctx.drawImage(c, x + Math.floor((w - 16) / 2), y + 5, 16, 16); }
-  rect(ctx, x + 3, y + h - 7, w - 6, 4, PAL.r);
-  for (let i = x + 5; i < x + w - 5; i += 3) rect(ctx, i, y + h - 6, 2, 2, PAL.w);
-  px(ctx, x + 1, y + 1, PAL.b); px(ctx, x + w - 2, y + 1, PAL.b); px(ctx, x + 1, y + h - 2, PAL.b); px(ctx, x + w - 2, y + h - 2, PAL.b);
-};
-FDRAW.quadro = function(ctx, x, y, w, h){
-  box(ctx, x, y, w, h, PAL.N, K); rect(ctx, x + 1, y + 1, w - 2, 1, '#d19a63'); rect(ctx, x + 1, y + 1, 1, h - 2, '#d19a63');
-  rect(ctx, x + 3, y + 3, w - 6, h - 6, PAL.b);
-  fillEllipse(ctx, x + w - 8, y + 7, 3, 3, PAL.y);
-  fillEllipse(ctx, x + 8, y + h - 5, 8, 4, PAL.e); fillEllipse(ctx, x + w - 9, y + h - 4, 9, 4, PAL.E);
-  rect(ctx, x + 3, y + h - 5, w - 6, 2, PAL.E);
-  px(ctx, x + 6, y + 6, PAL.w); px(ctx, x + 7, y + 6, PAL.w); px(ctx, x + 12, y + 8, PAL.w);
-};
-FDRAW.relogio = function(ctx, x, y, w, h){
-  const r = Math.floor(Math.min(w, h) / 2) - 1, cx = x + r + 1, cy = y + r + 1;
-  oEllipse(ctx, cx, cy, r, r, PAL.w, K); ringRows(ctx, cx, cy, r, r - 1, PAL.n);
-  px(ctx, cx, cy - r + 2, K); px(ctx, cx, cy + r - 2, K); px(ctx, cx - r + 2, cy, K); px(ctx, cx + r - 2, cy, K);
-  const d = new Date(), hm = (d.getHours() % 12) / 12 * Math.PI * 2 + d.getMinutes() / 60 * Math.PI / 6, mm = d.getMinutes() / 60 * Math.PI * 2;
-  const hand = (a, len, col) => { for (let s = 0; s <= len; s++) px(ctx, cx + Math.sin(a) * s, cy - Math.cos(a) * s, col); };
-  hand(hm, r - 4, K); hand(mm, r - 2, PAL.r); px(ctx, cx, cy, K);
-};
-FDRAW.prateleira = function(ctx, x, y, w, h){
-  const jars = [[PAL.y, PAL.Y], [PAL.p, PAL.P], [PAL.e, PAL.E]];
-  const jw = 7, gap = Math.floor((w - 2 - jars.length * jw) / (jars.length + 1));
-  jars.forEach((c, i) => {
-    const jx = x + 1 + gap + i * (jw + gap), jy = y;
-    rect(ctx, jx + 1, jy, jw - 2, 2, K);
-    box(ctx, jx, jy + 2, jw, h - 6, c[0], K); rect(ctx, jx + 1, jy + 4, 1, h - 9, '#fffaf0'); rect(ctx, jx + 2, jy + h - 6, jw - 4, 1, c[1]);
-  });
-  box(ctx, x, y + h - 4, w, 4, PAL.n, K); rect(ctx, x + 1, y + h - 2, w - 2, 1, PAL.N);
-};
-FDRAW.toalha = function(ctx, x, y, w, h){
-  rect(ctx, x + Math.floor(w / 2) - 1, y, 3, 3, PAL.G); px(ctx, x + Math.floor(w / 2), y + 1, K);
-  box(ctx, x, y + 3, w, h - 3, PAL.p, K);
-  for (let yy = y + 6; yy < y + h - 2; yy += 4) rect(ctx, x + 1, yy, w - 2, 1, PAL.w);
-  rect(ctx, x + 1, y + h - 3, w - 2, 1, PAL.P); rect(ctx, x + Math.floor(w / 2), y + 4, 1, h - 6, PAL.P);
-};
-function drawFurn(ctx, name, x, y, w, h, night){ const f = FDRAW[name]; if (f) f(ctx, x, y, w, h, night); }
+function drawFurn(ctx, name, x, y, w, h, o){ const f = FDRAW[name]; if (f) f(ctx, x, y, w, h, o || {}); }
 const _furnIcons = new Map();
 function furnIconURL(name, w, h){
   const key = name + w + 'x' + h;
   if (_furnIcons.has(key)) return _furnIcons.get(key);
-  const c = document.createElement('canvas'); c.width = w + 2; c.height = h + 2;
+  const c = document.createElement('canvas'); c.width = w + 2; c.height = h + 4;
   const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
-  drawFurn(g, name, 1, 1, w, h, false);
+  drawFurn(g, name, 1, 3, w, h, {});
   const u = c.toDataURL(); _furnIcons.set(key, u); return u;
 }
 
-/* Comodos: cada um tem 3 vagas de moveis. */
+/* ---- comodos ---- */
 const ROOMS = [
-  {id:'sala',     name:'Sala',     slots:['sofa', 'cama', 'luminaria']},
+  {id:'sala',     name:'Sala',     slots:['sofa', 'mesinha', 'estante']},
   {id:'cozinha',  name:'Cozinha',  slots:['geladeira', 'fogao', 'mesa']},
-  {id:'banheiro', name:'Banheiro', slots:['banheira', 'pia', 'privada']}
+  {id:'banheiro', name:'Banheiro', slots:['banheira', 'pia', 'privada']},
+  {id:'quarto',   name:'Quarto',   slots:['cama', 'comoda', 'luminaria']}
 ];
-/* Cada vaga: versao improvisada (gratis, nivel 0) e versao de verdade (nivel 1, paga). x = fracao da largura. */
+const roomIndex = id => ROOMS.findIndex(r => r.id === id);
+/* moveis padrao: nivel 0 gratis (improvisado), nivel 1 pago */
 const FURN = {
   sofa:      {room:'sala',     label:'Sofá',      x:0.02, tiers:[{name:'Sofá de esponja',              draw:'sofa_esponja',       w:38, h:18},
                                                                 {name:'Sofá miniatura',                draw:'sofa_mini',          w:40, h:20, price:90,  bonus:'Carinho vale mais.'}]},
-  cama:      {room:'sala',     label:'Cama',      x:0.37, tiers:[{name:'Cama de caixa de fósforo',     draw:'cama_fosforo',       w:40, h:16, sleep:{dx:22, dy:9}},
-                                                                {name:'Cama de boneca',                draw:'cama_boneca',        w:42, h:22, price:130, bonus:'Dorme mais rápido.', sleep:{dx:26, dy:15}}]},
-  luminaria: {room:'sala',     label:'Luminária', x:0.74, tiers:[{name:'Luminária de tampinha',        draw:'lum_tampinha',       w:14, h:26},
-                                                                {name:'Abajur miniatura',              draw:'lum_abajur',         w:16, h:30, price:70,  bonus:'A toca fica mais bonita à noite.'}]},
+  mesinha:   {room:'sala',     label:'Mesinha',   x:0.40, tiers:[{name:'Mesinha de tampa de pote',     draw:'mesinha_tampa',      w:24, h:12},
+                                                                {name:'Mesinha de centro',             draw:'mesinha_madeira',    w:26, h:14, price:80,  bonus:'A TV diverte mais.'}]},
+  estante:   {room:'sala',     label:'Estante',   x:0.72, tiers:[{name:'Estante de caixas de fósforo', draw:'estante_fosforo',    w:22, h:30},
+                                                                {name:'Estante de madeira',            draw:'estante_madeira',    w:24, h:34, price:100, bonus:'+1 moeda em cada mini-jogo.'}]},
   geladeira: {room:'cozinha',  label:'Geladeira', x:0.02, tiers:[{name:'Geladeira de caixa de leite',  draw:'gel_caixaleite',     w:20, h:30},
                                                                 {name:'Geladeira miniatura',           draw:'gel_mini',           w:22, h:34, price:110, bonus:'Comida na loja 1 moeda mais barata.'}]},
   fogao:     {room:'cozinha',  label:'Fogão',     x:0.28, tiers:[{name:'Fogãozinho de lata',           draw:'fogao_lata',         w:24, h:22},
@@ -1511,32 +1687,77 @@ const FURN = {
   banheira:  {room:'banheiro', label:'Banheira',  x:0.02, tiers:[{name:'Banheira de lata de sardinha', draw:'banheira_lata',      w:40, h:18},
                                                                 {name:'Banheira de porcelana',         draw:'banheira_porcelana', w:42, h:22, price:130, bonus:'Banho também dá +5 de diversão.'}]},
   pia:       {room:'banheiro', label:'Pia',       x:0.46, tiers:[{name:'Pia de tampinha',              draw:'pia_tampinha',       w:20, h:30},
-                                                                {name:'Pia com espelho',               draw:'pia_espelho',        w:22, h:34, price:80,  bonus:'Higiene cai mais devagar.'}]},
+                                                                {name:'Pia com espelho',               draw:'pia_espelho',        w:22, h:34, price:80,  bonus:'Higiene cai mais devagar. Espelho maior.'}]},
   privada:   {room:'banheiro', label:'Privada',   x:0.77, tiers:[{name:'Penico de dedal',              draw:'penico_dedal',       w:16, h:16},
-                                                                {name:'Privadinha de louça',           draw:'privadinha',         w:20, h:26, price:80,  bonus:'Ele faz cocô com menos frequência.'}]}
+                                                                {name:'Privadinha de louça',           draw:'privadinha',         w:20, h:26, price:80,  bonus:'Ele faz cocô com menos frequência.'}]},
+  cama:      {room:'quarto',   label:'Cama',      x:0.03, tiers:[{name:'Cama de caixa de fósforo',     draw:'cama_fosforo',       w:40, h:16, sleep:{dx:22, dy:9}},
+                                                                {name:'Cama de boneca',                draw:'cama_boneca',        w:42, h:22, price:130, bonus:'Dorme mais rápido.', sleep:{dx:26, dy:15}}]},
+  comoda:    {room:'quarto',   label:'Cômoda',    x:0.42, tiers:[{name:'Cômoda de caixa de sapato',    draw:'comoda_caixa',       w:26, h:20},
+                                                                {name:'Cômoda de madeira',             draw:'comoda_madeira',     w:28, h:24, price:110, bonus:'Roupas 5 moedas mais baratas.'}]},
+  luminaria: {room:'quarto',   label:'Luminária', x:0.74, tiers:[{name:'Luminária de tampinha',        draw:'lum_tampinha',       w:14, h:26},
+                                                                {name:'Abajur miniatura',              draw:'lum_abajur',         w:16, h:30, price:70,  bonus:'O quarto fica mais bonito à noite.'}]}
 };
-/* Decoracoes: wall = na parede (y a partir do topo da parede); floor = no meio do chao; onTub = em cima da banheira. */
+/* decoracoes: wall (x, y do topo da parede) | floor (x, no meio do chao) | onTub | onFurn.
+   Com "tiers": duas versoes a venda (barata e de pet shop). Com "use": interativo. */
 const DECOR = {
-  tapete:         {room:'sala',     name:'Tapete de retalho',    price:25, kind:'rug'},
-  poster:         {room:'sala',     name:'Pôster de queijo',     price:35, wall:true, x:0.08, y:18, draw:'poster', w:24, h:30},
-  quadro:         {room:'sala',     name:'Quadro pintado',       price:45, wall:true, x:0.62, y:22, draw:'quadro', w:26, h:20},
-  planta:         {room:'sala',     name:'Planta no dedal',      price:30, x:0.90, floor:true},
-  tv:             {room:'sala',     name:'TV miniatura',         price:120, x:0.06, floor:true, spr:'tv_mini'},
-  roda:           {room:'sala',     name:'Rodinha de correr',    price:70, x:0.74, floor:true, draw:'roda', w:32, h:36, desc:'Toque nela para o rato entrar e correr pela sala.'},
-  papel_listras:  {room:'sala',     name:'Papel listrado',       price:60, kind:'paper'},
-  papel_bolinhas: {room:'sala',     name:'Papel de bolinhas',    price:60, kind:'paper'},
-  papel_coracoes: {room:'sala',     name:'Papel de corações',    price:80, kind:'paper'},
-  relogio:        {room:'cozinha',  name:'Relógio de parede',    price:30, wall:true, x:0.84, y:10, draw:'relogio', w:16, h:16},
-  prateleira:     {room:'cozinha',  name:'Prateleira de potes',  price:50, wall:true, x:0.06, y:26, draw:'prateleira', w:32, h:14},
-  planta2:        {room:'cozinha',  name:'Plantinha na cozinha', price:30, x:0.90, floor:true, spr:'planta'},
-  patinho:        {room:'banheiro', name:'Patinho de borracha',  price:20, onTub:true},
-  toalha:         {room:'banheiro', name:'Toalha no gancho',     price:25, wall:true, x:0.70, y:44, draw:'toalha', w:12, h:20},
-  tapete_banho:   {room:'banheiro', name:'Tapetinho do banho',   price:25, kind:'rug'},
-  quadro2:        {room:'banheiro', name:'Quadro do mar',        price:45, wall:true, x:0.30, y:22, draw:'quadro', w:26, h:20}
+  /* sala */
+  tapete:         {room:'sala', name:'Tapete de retalho',   price:25, kind:'rug'},
+  poster:         {room:'sala', name:'Pôster de queijo',    price:35, wall:true, x:0.08, y:18, draw:'poster', w:24, h:30},
+  quadro:         {room:'sala', name:'Quadro pintado',      price:45, wall:true, x:0.62, y:14, draw:'quadro', w:26, h:20},
+  planta:         {room:'sala', name:'Planta no dedal',     price:30, x:0.90, floor:true, draw:'planta', w:10, h:12},
+  papel_listras:  {room:'sala', name:'Papel listrado',      price:60, kind:'paper'},
+  papel_bolinhas: {room:'sala', name:'Papel de bolinhas',   price:60, kind:'paper'},
+  papel_coracoes: {room:'sala', name:'Papel de corações',   price:80, kind:'paper'},
+  roda:    {room:'sala', label:'Rodinha de correr', x:0.76, floor:true, use:'roda',
+            tiers:[{name:'Rodinha de lata de conserva', draw:'roda',         w:32, h:36, price:35},
+                   {name:'Rodinha de pet shop',         draw:'roda_petshop', w:32, h:36, price:90}]},
+  tv:      {room:'sala', label:'TV', x:0.08, floor:true, use:'tv',
+            tiers:[{name:'TV de caixa de papelão', draw:'tv_papelao', w:20, h:16, price:30},
+                   {name:'TV miniatura',           draw:'tv_mini',    w:20, h:16, price:120}]},
+  roer:    {room:'sala', label:'Brinquedo de roer', x:0.50, floor:true, dy:6, use:'roer',
+            tiers:[{name:'Rolha de cortiça',      draw:'roer_rolha', w:12, h:8, price:15},
+                   {name:'Osso de roer colorido', draw:'roer_osso',  w:14, h:9, price:45}]},
+  janela:  {room:'sala', label:'Janela', wall:true, x:0.34, y:16, use:'janela',
+            tiers:[{name:'Buraco com vista',        draw:'janela_buraco',  w:22, h:18, price:20},
+                   {name:'Janela com cortina',      draw:'janela_moldura', w:26, h:22, price:70}]},
+  /* cozinha */
+  relogio:        {room:'cozinha', name:'Relógio de parede',    price:30, wall:true, x:0.84, y:10, draw:'relogio', w:16, h:16},
+  prateleira:     {room:'cozinha', name:'Prateleira de potes',  price:50, wall:true, x:0.06, y:26, draw:'prateleira', w:32, h:14},
+  planta2:        {room:'cozinha', name:'Plantinha na cozinha', price:30, x:0.90, floor:true, draw:'planta', w:10, h:12},
+  bebedouro: {room:'cozinha', label:'Bebedouro', wall:true, x:0.23, y:52, use:'bebedouro',
+              tiers:[{name:'Bebedouro de garrafa PET', draw:'bebedouro_pet',     w:12, h:30, price:25},
+                     {name:'Bebedouro de pet shop',    draw:'bebedouro_petshop', w:12, h:30, price:70}]},
+  pote:      {room:'cozinha', label:'Pote de petisco', wall:true, x:0.40, y:44, use:'pote',
+              tiers:[{name:'Vidro de maionese com biscoitos', draw:'pote_maionese', w:14, h:18, price:20},
+                     {name:'Pote de biscoitos de cerâmica',   draw:'pote_biscoito', w:16, h:20, price:60}]},
+  /* banheiro */
+  patinho:        {room:'banheiro', name:'Patinho de borracha', price:20, onTub:true},
+  toalha:         {room:'banheiro', name:'Toalha no gancho',    price:25, wall:true, x:0.70, y:44, draw:'toalha', w:12, h:20},
+  tapete_banho:   {room:'banheiro', name:'Tapetinho do banho',  price:25, kind:'rug'},
+  quadro2:        {room:'banheiro', name:'Quadro do mar',       price:45, wall:true, x:0.30, y:22, draw:'quadro', w:26, h:20},
+  chuveiro:  {room:'banheiro', label:'Chuveirinho', wall:true, x:0.10, y:56, use:'chuveiro',
+              tiers:[{name:'Regador pendurado',     draw:'chuveiro_regador',   w:18, h:26, price:25},
+                     {name:'Chuveiro de brinquedo', draw:'chuveiro_brinquedo', w:18, h:20, price:75}]},
+  /* quarto */
+  rede:      {room:'quarto', label:'Rede', wall:true, x:0.22, y:36, use:'rede',
+              tiers:[{name:'Rede de meia velha',  draw:'rede_meia', w:40, h:18, price:20},
+                     {name:'Rede de pet de tecido', draw:'rede_pet', w:40, h:18, price:65}]},
+  casinha:   {room:'quarto', label:'Casinha de esconder', x:0.14, floor:true, use:'casinha',
+              tiers:[{name:'Caixa de sapato com buraco', draw:'casinha_sapato',  w:28, h:22, price:25},
+                     {name:'Casinha de madeira',         draw:'casinha_madeira', w:30, h:26, price:90}]},
+  radio:     {room:'quarto', label:'Rádio', x:0.84, floor:true, use:'radio',
+              tiers:[{name:'Rádio de caixa de fósforo', draw:'radio_fosforo', w:16, h:14, price:25},
+                     {name:'Vitrola miniatura',         draw:'radio_vitrola', w:18, h:14, price:80}]},
+  cofre:     {room:'quarto', label:'Cofrinho', onFurn:'comoda', dx:2, use:'cofre',
+              tiers:[{name:'Cofrinho de lata de leite', draw:'cofre_lata',  w:12, h:14, price:25},
+                     {name:'Cofrinho de porquinho',     draw:'cofre_porco', w:16, h:12, price:80}]}
 };
 function furnTier(key){ return (S.furn && S.furn[key]) || 0; }
 function furnDef(key){ return FURN[key].tiers[furnTier(key)]; }
 function hasUpgrade(key){ return furnTier(key) >= 1; }
+function decorTier(key){ return (S.decorTier && S.decorTier[key]) || 0; }
+function decorDef(key){ const d = DECOR[key]; return d.tiers ? d.tiers[decorTier(key)] : d; }
+function hasDecor(key){ return S.decor.includes(key); }
 
 /* ===== Estado do bichinho, economia e simulacao ===== */
 const FOODS = {
@@ -1568,7 +1789,8 @@ function newState(){
     stage:'baby', form:'', care:{hunger:0, energy:0, hygiene:0, fun:0, t:0},
     inv:{queijo:3, semente:3},
     hats:[], hat:'', outfits:[], outfit:'',
-    furn:{}, decor:[], paper:'', skins:['bege'], skin:'bege', room:0,
+    furn:{}, decor:[], decorTier:{}, paper:'', skins:['bege'], skin:'bege', room:0,
+    uses:{}, bank:0, hidden:false,
     stats:{fed:0, played:0, baths:0, meds:0, pets:0, evolutions:0},
     best:{}, sound:true, pending:[]
   };
@@ -1592,8 +1814,11 @@ function load(){
     S.furn = d.furn || {};
     S.outfits = d.outfits || []; S.outfit = d.outfit || '';
     S.decor = (d.decor || []).filter(k => DECOR[k]);
+    S.decorTier = d.decorTier || {};
+    if (!d.decorTier){ if (S.decor.includes('tv')) S.decorTier.tv = 1; if (S.decor.includes('roda')) S.decorTier.roda = 1; }
+    S.uses = d.uses || {}; S.bank = d.bank || 0; S.hidden = !!d.hidden;
     if (S.paper && !DECOR[S.paper]) S.paper = '';
-    S.room = Math.min(2, Math.max(0, d.room || 0));
+    S.room = Math.min(ROOMS.length - 1, Math.max(0, d.room || 0));
     S.pending = [];
     return true;
   } catch (e) { return false; }
@@ -1607,6 +1832,7 @@ function importCode(code){
     if (!d || d.v !== 1 || typeof d.hunger !== 'number') return false;
     S = Object.assign(newState(), d);
     S.furn = d.furn || {}; S.outfits = d.outfits || []; S.decor = (d.decor || []).filter(k => DECOR[k]);
+    S.decorTier = d.decorTier || {}; S.uses = d.uses || {}; S.bank = d.bank || 0; S.hidden = !!d.hidden;
     S.pending = [];
     save();
     return true;
@@ -1640,7 +1866,8 @@ function tick(ms){
   const h = ms / HOUR;
   const sm = S.sleeping ? 0.5 : 1;
   S.hunger  = clamp(S.hunger - 2.2 * h * sm);
-  S.fun     = clamp(S.fun - (2.5 + (S.sick ? 1.5 : 0)) * h * sm);
+  S.fun     = clamp(S.fun - (2.5 + (S.sick ? 1.5 : 0)) * h * sm * (S.hidden ? 0.5 : 1));
+  if (S.decor.includes('cofre')) S.bank = Math.min(S.decorTier && S.decorTier.cofre ? 24 : 12, (S.bank || 0) + h);
   S.hygiene = clamp(S.hygiene - (1.6 + S.poops * 0.7) * h * (hasUpgrade('pia') ? 0.7 : 1));
   if (S.sleeping){
     S.energy = clamp(S.energy + (hasUpgrade('cama') ? 18 : 14) * h);
@@ -1756,6 +1983,7 @@ function petRat(){
   return {ok:true, msg:''};
 }
 function finishGame(id, score, coins){
+  if (hasUpgrade('estante')) coins += 1;
   S.coins += coins;
   S.fun = clamp(S.fun + 25);
   S.energy = clamp(S.energy - 4);
@@ -1764,12 +1992,18 @@ function finishGame(id, score, coins){
   if (!S.best[id] || score > S.best[id]) S.best[id] = score;
   save();
 }
-function buy(cat, key){
+function outfitPrice(key){ return Math.max(5, OUTFITS[key].price - (hasUpgrade('comoda') ? 5 : 0)); }
+/* cat: food | hat | outfit | decor | furn | skin ; tier: para decoracoes com duas versoes (0 barata, 1 pet shop) */
+function buy(cat, key, tier){
   let price, owned = false;
   if (cat === 'food'){ price = foodPrice(key); }
   else if (cat === 'hat'){ price = HATS[key].price; owned = S.hats.includes(key); }
-  else if (cat === 'outfit'){ price = OUTFITS[key].price; owned = S.outfits.includes(key); }
-  else if (cat === 'decor'){ price = DECOR[key].price; owned = S.decor.includes(key); }
+  else if (cat === 'outfit'){ price = outfitPrice(key); owned = S.outfits.includes(key); }
+  else if (cat === 'decor'){
+    const d = DECOR[key];
+    if (d.tiers){ tier = tier || 0; price = d.tiers[tier].price; owned = S.decor.includes(key) && decorTier(key) >= tier; }
+    else { price = d.price; owned = S.decor.includes(key); }
+  }
   else if (cat === 'furn'){ price = FURN[key].tiers[1].price; owned = hasUpgrade(key); }
   else if (cat === 'skin'){ price = SKINS[key].price; owned = S.skins.includes(key); }
   if (owned) return {ok:false, msg:'Você já tem esse.'};
@@ -1778,7 +2012,11 @@ function buy(cat, key){
   if (cat === 'food'){ S.inv[key] = (S.inv[key] || 0) + 1; }
   else if (cat === 'hat'){ S.hats.push(key); S.hat = key; }
   else if (cat === 'outfit'){ S.outfits.push(key); S.outfit = key; }
-  else if (cat === 'decor'){ S.decor.push(key); if (DECOR[key].kind === 'paper') S.paper = key; }
+  else if (cat === 'decor'){
+    if (!S.decor.includes(key)) S.decor.push(key);
+    if (DECOR[key].tiers){ S.decorTier[key] = tier || 0; }
+    if (DECOR[key].kind === 'paper') S.paper = key;
+  }
   else if (cat === 'furn'){ S.furn[key] = 1; }
   else if (cat === 'skin'){ S.skins.push(key); S.skin = key; }
   save();
@@ -1846,13 +2084,13 @@ const SFX = (() => {
   };
 })();
 
-/* ===== A toca: comodos, cena principal, barra de icones ===== */
+/* ===== A toca: comodos, cena principal, interativos e barra de icones ===== */
 let W = 125, H = 270, SCALE = 3;
 const LAY = {
   top:14, bar:26,
   get floorH(){ return Math.round((H - this.top - this.bar) * 0.45); },
-  get floorY(){ return H - this.bar - this.floorH; },        /* parede encontra o chao */
-  get walkTop(){ return this.floorY + 22; },                  /* area onde o rato anda (pes) */
+  get floorY(){ return H - this.bar - this.floorH; },
+  get walkTop(){ return this.floorY + 22; },
   get walkBottom(){ return H - this.bar - 6; },
   get ratY(){ return this.floorY + 40; }
 };
@@ -1872,14 +2110,40 @@ const SCENE = {
   anim:null, fx:[],
   blinkAt:0, blinking:false,
   trans:null,
-  riding:false, wheelAng:0, rideDist:0
+  riding:false, wheelAng:0, rideDist:0,
+  active:{}          /* efeitos visuais ligados: {tv:{until}, radio:{until}, ...} */
 };
 const WHEEL_R = 15;
-function wheelRect(){
-  const d = DECOR.roda, c = {w:d.w, h:d.h};
-  const x = Math.round(d.x * W) - Math.round(c.w / 2), y = LAY.floorY + Math.round(LAY.floorH * 0.62) - c.h;
-  return {x, y, w:c.w, h:c.h};
+
+function iconRect(i){
+  const sw = W / ICONS.length;
+  return {x:Math.round(i * sw + (sw - 10) / 2), y:H - LAY.bar + 8, w:10, h:10};
 }
+function slotX(key){ return Math.round(FURN[key].x * W); }
+function furnBottom(){ return LAY.floorY + 10; }
+function furnRect(key){ const d = furnDef(key); return {x:slotX(key), y:furnBottom() - d.h, w:d.w, h:d.h}; }
+function floorMid(){ return LAY.floorY + Math.round(LAY.floorH * 0.62); }
+/* retangulo de uma decoracao (para desenhar e para o toque) */
+function decorRect(key){
+  const d = DECOR[key], def = decorDef(key);
+  const w = def.w || 10, h = def.h || 10;
+  if (d.wall) return {x:Math.round(d.x * W), y:LAY.top + d.y, w, h};
+  if (d.onTub){ const t = furnRect('banheira'); return {x:t.x + 5, y:t.y - 7 + 4, w:8, h:7}; }
+  if (d.onFurn){ const f = furnRect(d.onFurn); return {x:f.x + (d.dx || 0), y:f.y - h, w, h}; }
+  return {x:Math.round(d.x * W) - Math.round(w / 2), y:floorMid() - h + (d.dy || 0), w, h};
+}
+function bedSpot(){ const d = furnDef('cama'); return {x:slotX('cama') + d.sleep.dx, y:furnBottom() - d.h + d.sleep.dy}; }
+function tableSpot(){ const d = furnDef('mesa'); return {x:slotX('mesa') + Math.round(d.w / 2) - 6, y:furnBottom() + 16}; }
+function tubSpot(){ const d = furnDef('banheira'); return {x:slotX('banheira') + Math.round(d.w / 2), y:furnBottom() - Math.round(d.h * 0.35)}; }
+function poopSpot(i){
+  const rooms = ['sala', 'banheiro', 'cozinha'], xs = [0.3, 0.55, 0.75], ys = [0.35, 0.7, 0.5];
+  return {room:roomIndex(rooms[i % 3]), x:Math.round(xs[i % 3] * W), y:Math.round(LAY.walkTop + ys[i % 3] * (LAY.walkBottom - LAY.walkTop))};
+}
+function randomWalkTarget(){
+  SCENE.targetX = 16 + Math.random() * (W - 32);
+  SCENE.targetY = LAY.walkTop + Math.random() * (LAY.walkBottom - LAY.walkTop);
+}
+function wheelRect(){ return decorRect('roda'); }
 function startRide(){
   const r = wheelRect();
   SCENE.riding = true; SCENE.anim = null; SCENE.rideDist = 0;
@@ -1893,22 +2157,89 @@ function stopRide(){
   SCENE.walkT = 2500;
 }
 
-function iconRect(i){
-  const sw = W / ICONS.length;
-  return {x:Math.round(i * sw + (sw - 10) / 2), y:H - LAY.bar + 8, w:10, h:10};
+/* ---------- interativos ---------- */
+const USES = {
+  bebedouro:{cool:[10, 7],  anim:'drink',  ms:2400, msg:'Glup glup glup!',       fx(t){ S.energy = clamp(S.energy + (t ? 6 : 4)); S.hygiene = clamp(S.hygiene + (t ? 3 : 2)); }},
+  pote:     {cool:[240, 240], anim:'snack', ms:2600, msg:'Um biscoito caiu!',    fx(t){ S.hunger = clamp(S.hunger + (t ? 6 : 5)); S.fun = clamp(S.fun + (t ? 4 : 3)); }},
+  rede:     {cool:[20, 15], anim:'nap',    ms:15000, msg:'Cochilo na rede...',   fx(t){ S.energy = clamp(S.energy + (t ? 7 : 5)); }},
+  roer:     {cool:[5, 4],   anim:'gnaw',   ms:2600, msg:'Nhec nhec nhec!',       fx(t){ S.fun = clamp(S.fun + (t ? 4 : 3)); }},
+  tv:       {cool:[10, 8],  anim:'watch',  ms:20000, msg:'Hora do programa!',    fx(t){ S.fun = clamp(S.fun + (t ? 5 : 4) + (hasUpgrade('mesinha') ? 2 : 0)); }},
+  radio:    {cool:[3, 2],   anim:'dance',  ms:6500, msg:'Toca o som!',           fx(t){ S.fun = clamp(S.fun + (t ? 3 : 2)); }},
+  janela:   {cool:[5, 4],   anim:'look',   ms:4000, msg:'',                      fx(t){ S.fun = clamp(S.fun + (t ? 3 : 2)); }},
+  chuveiro: {cool:[30, 20], anim:'shower', ms:3500, msg:'Chuvinha rápida!',      fx(t){ S.hygiene = clamp(S.hygiene + (t ? 8 : 5)); }},
+  espelho:  {cool:[3, 3],   anim:'mirror', ms:2200, msg:'Que ratinho lindo!',    fx(t){ S.fun = clamp(S.fun + (t ? 3 : 2)); }},
+  casinha:  {cool:[0, 0]},
+  cofre:    {cool:[0, 0]},
+  roda:     {cool:[0, 0]}
+};
+function useCooldown(key){
+  const u = USES[key]; if (!u || !u.cool[0]) return 0;
+  const last = (S.uses && S.uses[key]) || 0;
+  const cool = u.cool[key === 'espelho' ? (hasUpgrade('pia') ? 1 : 0) : decorTier(key)] * 60000;
+  return Math.max(0, last + cool - Date.now());
 }
-function slotX(key){ return Math.round(FURN[key].x * W); }
-function furnBottom(){ return LAY.floorY + 10; }
-function bedSpot(){ const d = furnDef('cama'); return {x:slotX('cama') + d.sleep.dx, y:furnBottom() - d.h + d.sleep.dy}; }
-function tableSpot(){ const d = furnDef('mesa'); return {x:slotX('mesa') + Math.round(d.w / 2) - 6, y:furnBottom() + 16}; }
-function tubSpot(){ const d = furnDef('banheira'); return {x:slotX('banheira') + Math.round(d.w / 2), y:furnBottom() - Math.round(d.h * 0.35)}; }
-function poopSpot(i){
-  const rooms = [0, 2, 1], xs = [0.3, 0.55, 0.75], ys = [0.35, 0.7, 0.5];
-  return {room:rooms[i % 3], x:Math.round(xs[i % 3] * W), y:Math.round(LAY.walkTop + ys[i % 3] * (LAY.walkBottom - LAY.walkTop))};
+function coinsInBank(){
+  if (!hasDecor('cofre')) return 0;
+  return Math.min(decorTier('cofre') ? 24 : 12, Math.floor(S.bank || 0));
 }
-function randomWalkTarget(){
-  SCENE.targetX = 16 + Math.random() * (W - 32);
-  SCENE.targetY = LAY.walkTop + Math.random() * (LAY.walkBottom - LAY.walkTop);
+/* usa um interativo; devolve {ok, msg} */
+function useItem(key){
+  const u = USES[key]; if (!u) return {ok:false};
+  if (S.sleeping) return {ok:false, msg:'Shh... ' + S.name + ' está dormindo.'};
+  if (key === 'casinha'){
+    if (S.hidden){ S.hidden = false; const r = decorRect('casinha'); SCENE.ratX = r.x + r.w + 10; SCENE.ratY = Math.max(LAY.walkTop, r.y + r.h); randomWalkTarget(); save(); return {ok:true, msg:S.name + ' saiu da casinha.'}; }
+    S.hidden = true; SCENE.anim = null; stopRide(); save(); return {ok:true, msg:S.name + ' se escondeu. Toque na casinha para ele sair.'};
+  }
+  if (S.hidden) return {ok:false, msg:S.name + ' está escondido na casinha.'};
+  if (key === 'cofre'){
+    const c = coinsInBank();
+    if (c <= 0) return {ok:false, msg:'O cofrinho ainda está vazio. Ele guarda 1 moeda por hora.'};
+    S.coins += c; S.bank -= c; save(); SFX.play('buy');
+    const r = decorRect('cofre'); const t = performance.now();
+    for (let i = 0; i < Math.min(6, c); i++) SCENE.fx.push({kind:'coin', x:r.x + Math.random() * r.w, y:r.y, until:t + 700 + i * 120, dur:700 + i * 120});
+    return {ok:true, msg:'+' + c + ' moedas do cofrinho!'};
+  }
+  const left = useCooldown(key);
+  if (left > 0){ const m = Math.ceil(left / 60000); return {ok:false, msg:'Ainda descansando: ' + (m >= 60 ? Math.ceil(m / 60) + 'h' : m + ' min') + '.'}; }
+  stopRide();
+  S.uses = S.uses || {}; S.uses[key] = Date.now();
+  u.fx(key === 'espelho' ? (hasUpgrade('pia') ? 1 : 0) : decorTier(key));
+  S.stats.pets++;
+  const r = key === 'espelho' ? furnRect('pia') : decorRect(key);
+  const data = {key};
+  if (key === 'janela'){ data.cat = Math.random() < 0.25; }
+  if (key === 'snack' || key === 'pote'){ data.food = 'biscoito'; }
+  setAnim(u.anim, u.ms, data);
+  SCENE.active[key] = {until:performance.now() + u.ms, cat:data.cat};
+  /* posicao do rato para a animacao */
+  if (key === 'bebedouro'){ SCENE.ratX = r.x + r.w / 2 + 2; SCENE.ratY = LAY.walkTop; }
+  else if (key === 'pote'){ SCENE.ratX = r.x + r.w / 2; SCENE.ratY = LAY.walkTop + 4; }
+  else if (key === 'roer'){ SCENE.ratX = r.x + r.w / 2 - 8; SCENE.ratY = r.y + r.h + 2; }
+  else if (key === 'tv'){ SCENE.ratX = r.x + r.w + 18; SCENE.ratY = r.y + r.h + 6; SCENE.dir = -1; }
+  else if (key === 'radio'){ SCENE.ratX = r.x - 14; SCENE.ratY = r.y + r.h + 2; }
+  else if (key === 'janela'){ SCENE.ratX = r.x + r.w / 2; SCENE.ratY = LAY.walkTop; }
+  else if (key === 'chuveiro'){ SCENE.ratX = r.x + r.w / 2 + 2; SCENE.ratY = LAY.walkTop + 2; }
+  else if (key === 'espelho'){ const p = furnRect('pia'); SCENE.ratX = p.x + p.w / 2; SCENE.ratY = LAY.walkTop + 2; }
+  SCENE.targetX = SCENE.ratX; SCENE.targetY = SCENE.ratY;
+  SFX.play(key === 'radio' ? 'happy' : key === 'chuveiro' ? 'flip' : 'ok');
+  if (key === 'radio') playJingle();
+  return {ok:true, msg:data.cat ? 'Um gato na janela!' : u.msg};
+}
+function playJingle(){
+  const seq = [523, 659, 784, 659, 523, 587, 698, 587, 523, 659, 784, 1046];
+  seq.forEach((f, i) => setTimeout(() => { if (SCENE.active.radio) SFX.note(f, 0.18, 0.05); }, i * 450));
+}
+/* toque em algum interativo do comodo atual? devolve a chave */
+function interactiveAt(x, y){
+  const room = ROOMS[SCENE.room];
+  for (const key of Object.keys(DECOR)){
+    const d = DECOR[key];
+    if (!d.use || d.room !== room.id || !hasDecor(key)) continue;
+    const r = decorRect(key);
+    if (x >= r.x - 3 && x <= r.x + r.w + 3 && y >= r.y - 3 && y <= r.y + r.h + 3) return key;
+  }
+  if (room.id === 'banheiro'){ const p = furnRect('pia'); if (x >= p.x - 2 && x <= p.x + p.w + 2 && y >= p.y - 2 && y <= p.y + p.h) return 'espelho'; }
+  return null;
 }
 
 /* --- fundos dos comodos --- */
@@ -1937,7 +2268,6 @@ function drawRoomBg(ctx, r, night){
     rect(ctx, 0, fy, W, bottom - fy, night ? '#5a4a3a' : '#c8945c');
     for (let y = fy + 4; y < bottom; y += 10) rect(ctx, 0, y, W, 1, night ? '#4d3f31' : '#b8834c');
     for (let x = 0; x < W + 28; x += 28) rect(ctx, x + ((Math.floor(x / 28) % 2) ? 14 : 0) - 14, fy + 4, 1, bottom - fy - 4, night ? '#4d3f31' : '#b8834c');
-    /* buraco da toca (entrada) */
     const hx = W - 9, hy = fy - 7;
     fillEllipse(ctx, hx, hy, 11, 15, PAL.k);
     fillEllipse(ctx, hx, hy + 1, 9, 13, night ? '#1a1430' : '#2a2140');
@@ -1962,7 +2292,7 @@ function drawRoomBg(ctx, r, night){
     box(ctx, wx, wy, 26, 20, night ? '#1b1233' : '#bfe6ff', PAL.k); rect(ctx, wx + 12, wy + 1, 2, 18, PAL.k); rect(ctx, wx + 1, wy + 9, 24, 2, PAL.k);
     if (night){ px(ctx, wx + 5, wy + 4, PAL.w); px(ctx, wx + 20, wy + 6, PAL.w); px(ctx, wx + 8, wy + 14, PAL.w); }
     else { fillEllipse(ctx, wx + 19, wy + 5, 3, 3, '#ffd23f'); }
-  } else {
+  } else if (id === 'banheiro'){
     const wall = night ? '#33455a' : '#d6ecf3', line = night ? '#2c3d50' : '#b9d7e2';
     rect(ctx, 0, top, W, fy - top, wall);
     for (let y = top + 8; y < fy - 4; y += 12) rect(ctx, 0, y, W, 1, line);
@@ -1974,29 +2304,37 @@ function drawRoomBg(ctx, r, night){
       const rw = Math.round(W * 0.36), rx = Math.round((W - rw) / 2), ry = fy + Math.round(LAY.floorH * 0.5);
       rect(ctx, rx, ry, rw, 12, PAL.k); rect(ctx, rx + 1, ry + 1, rw - 2, 10, '#5aa9e6'); rect(ctx, rx + 3, ry + 3, rw - 6, 6, '#9ad4f5');
     }
+  } else {
+    const wall = night ? '#3d3160' : '#e8dcf5', star = night ? '#6b5fa8' : '#fffaf0';
+    rect(ctx, 0, top, W, fy - top, wall);
+    for (let y = top + 8; y < fy - 6; y += 14) for (let x = (Math.floor(y / 14) % 2) ? 9 : 2; x < W; x += 18){ px(ctx, x, y, star); px(ctx, x - 1, y + 1, star); px(ctx, x + 1, y + 1, star); px(ctx, x, y + 2, star); }
+    rect(ctx, 0, fy - 5, W, 5, night ? '#2f2650' : '#c9b8e0'); rect(ctx, 0, fy - 5, W, 1, night ? '#241c40' : '#a998c9');
+    rect(ctx, 0, fy, W, bottom - fy, night ? '#4a3f66' : '#cdb9e6');
+    for (let y = fy + 3; y < bottom; y += 8) for (let x = ((Math.floor((y - fy) / 8)) % 2) ? 4 : 0; x < W; x += 8) px(ctx, x, y, night ? '#54487a' : '#dccdf5');
   }
 }
-function drawRoomItems(ctx, r, night){
+function drawRoomItems(ctx, r, night, t){
   const room = ROOMS[r], fb = furnBottom();
+  const opts = key => { const a = SCENE.active[key]; return {night, t, active:!!a, on:!!a, cat:a && a.cat, hidden:key === 'casinha' && S.hidden, coins:key === 'cofre' && coinsInBank() > 0}; };
+  /* parede */
   for (const k of S.decor){
     const d = DECOR[k]; if (!d || d.room !== room.id || !d.wall) continue;
-    if (d.draw) drawFurn(ctx, d.draw, Math.round(d.x * W), LAY.top + d.y, d.w, d.h, night);
-    else drawSpr(ctx, d.spr || k, Math.round(d.x * W), LAY.top + d.y);
+    const rr = decorRect(k), def = decorDef(k);
+    drawFurn(ctx, def.draw, rr.x, rr.y, rr.w, rr.h, opts(k));
   }
+  /* moveis */
   for (const key of room.slots){
     const d = furnDef(key), x = slotX(key), y = fb - d.h;
-    drawFurn(ctx, d.draw, x, y, d.w, d.h, night);
+    drawFurn(ctx, d.draw, x, y, d.w, d.h, {night, t});
     if (key === 'luminaria' && night && !S.sleeping){ ctx.save(); ctx.globalAlpha = 0.25; fillEllipse(ctx, x + d.w / 2, fb + 2, hasUpgrade('luminaria') ? 24 : 16, 8, '#ffd23f'); ctx.restore(); }
   }
+  /* em cima de moveis, banheira e chao */
   for (const k of S.decor){
-    const d = DECOR[k]; if (!d || d.room !== room.id || !(d.floor || d.onTub)) continue;
-    if (d.draw){
-      if (k === 'roda' && SCENE.riding) continue;
-      const r = wheelRect(); drawFurn(ctx, d.draw, r.x, r.y, r.w, r.h, night); continue;
-    }
-    const spr = d.spr || k, c = spriteCanvas(spr); if (!c) continue;
-    if (d.onTub){ const t = furnDef('banheira'); drawSpr(ctx, spr, slotX('banheira') + 5, fb - t.h - c.height + 4); }
-    else drawSpr(ctx, spr, Math.round(d.x * W) - Math.round(c.width / 2), LAY.floorY + Math.round(LAY.floorH * 0.62) - c.height);
+    const d = DECOR[k]; if (!d || d.room !== room.id || d.wall || d.kind) continue;
+    if (k === 'roda' && SCENE.riding) continue;
+    const rr = decorRect(k), def = decorDef(k);
+    if (d.onTub){ drawSpr(ctx, 'patinho', rr.x, rr.y); continue; }
+    drawFurn(ctx, def.draw, rr.x, rr.y, rr.w, rr.h, opts(k));
   }
 }
 function drawIcons(ctx){
@@ -2021,11 +2359,13 @@ function drawNeedsHint(ctx, t, rx, ry){
 }
 
 function goRoom(idx, dir){
-  idx = ((idx % 3) + 3) % 3;
+  const n = ROOMS.length;
+  idx = ((idx % n) + n) % n;
   if (idx === SCENE.room) return;
   const d = dir || (idx > SCENE.room ? 1 : -1);
   SCENE.trans = {from:SCENE.room, to:idx, start:performance.now(), dir:d};
   SCENE.riding = false;
+  if (SCENE.anim && SCENE.anim.type !== 'evolve') SCENE.anim = null;
   SCENE.room = idx; S.room = idx;
   SCENE.ratX = d > 0 ? W + 16 : -16;
   SCENE.ratY = Math.min(Math.max(SCENE.ratY, LAY.walkTop), LAY.walkBottom);
@@ -2036,6 +2376,7 @@ function goRoom(idx, dir){
 
 function updateScene(dt, t){
   if (SCENE.trans && t - SCENE.trans.start > 280) SCENE.trans = null;
+  for (const k of Object.keys(SCENE.active)) if (t > SCENE.active[k].until) delete SCENE.active[k];
   if (SCENE.riding){
     const dx = SCENE.targetX - SCENE.ratX, dy = SCENE.targetY - SCENE.ratY;
     const dist = Math.hypot(dx, dy);
@@ -2047,7 +2388,7 @@ function updateScene(dt, t){
       SCENE.rideDist += mv;
       if (SCENE.rideDist > 40){ SCENE.rideDist = 0; S.fun = clamp(S.fun + 1); S.energy = clamp(S.energy - 0.3); if (Math.random() < 0.3) addHearts(1); }
     }
-  } else if (S.started && !S.sleeping && !SCENE.anim && mood() !== 'sick'){
+  } else if (S.started && !S.sleeping && !S.hidden && !SCENE.anim && mood() !== 'sick'){
     SCENE.walkT -= dt;
     if (SCENE.walkT <= 0){
       SCENE.walkT = 2500 + Math.random() * 5000;
@@ -2073,16 +2414,18 @@ function updateScene(dt, t){
 function drawRoom(ctx, r, ox, night, withRat, t){
   ctx.save(); ctx.translate(ox, 0);
   drawRoomBg(ctx, r, night);
-  drawRoomItems(ctx, r, night);
+  drawRoomItems(ctx, r, night, t);
   for (let i = 0; i < S.poops; i++){ const p = poopSpot(i); if (p.room === r) drawSpr(ctx, 'coco', p.x - 4, p.y - 8); }
   if (withRat) drawRatInRoom(ctx, r, t);
   ctx.restore();
 }
 function ratPos(roomId){
   const a = SCENE.anim;
-  if (S.sleeping){ if (roomId !== 'sala') return null; const b = bedSpot(); return {x:b.x, y:b.y}; }
+  if (S.sleeping){ if (roomId !== 'quarto') return null; const b = bedSpot(); return {x:b.x, y:b.y}; }
+  if (S.hidden){ return null; }
   if (a && a.type === 'eat' && roomId === 'cozinha'){ const s = tableSpot(); return {x:s.x, y:s.y}; }
   if (a && a.type === 'bath' && roomId === 'banheiro'){ const s = tubSpot(); return {x:s.x, y:s.y}; }
+  if (a && a.type === 'nap' && roomId === 'quarto'){ const r = decorRect('rede'); return {x:r.x + Math.round(r.w / 2), y:r.y + r.h - 2}; }
   return {x:SCENE.ratX, y:SCENE.ratY};
 }
 function drawRatInRoom(ctx, r, t){
@@ -2090,36 +2433,45 @@ function drawRatInRoom(ctx, r, t){
   const roomId = ROOMS[r].id;
   const pos = ratPos(roomId); if (!pos) return;
   let face = m === 'sick' ? 'sick' : m === 'sad' ? 'sad' : (SCENE.blinking ? 'blink' : 'normal');
-  let holding = null, flip = SCENE.dir < 0;
+  let holding = null, flip = SCENE.dir < 0, sleeping = S.sleeping;
   let rx = pos.x, ry = pos.y;
   if (S.sleeping) flip = false;
   if (a){
     if (a.type === 'eat'){ face = 'eat'; holding = a.food; flip = false; }
+    else if (a.type === 'snack'){ const ph = t - (a.until - 2600); if (ph > 700){ face = 'eat'; holding = 'biscoito'; } else face = 'wow'; flip = false; }
+    else if (a.type === 'drink'){ face = Math.floor(t / 250) % 2 ? 'eat' : 'wow'; flip = false; ry -= 2; }
     else if (a.type === 'happy'){ face = 'happy'; ry -= (Math.floor(t / 160) % 2) * 3; }
-    else if (a.type === 'pet'){ face = 'pet'; }
-    else if (a.type === 'bath'){ face = 'happy'; flip = false; }
+    else if (a.type === 'pet' || a.type === 'mirror'){ face = 'pet'; }
+    else if (a.type === 'bath' || a.type === 'shower'){ face = 'happy'; flip = false; }
     else if (a.type === 'med'){ face = 'wow'; }
     else if (a.type === 'no'){ face = 'sad'; flip = Math.floor(t / 150) % 2 === 0; }
     else if (a.type === 'evolve'){ face = 'wow'; }
+    else if (a.type === 'nap'){ sleeping = true; }
+    else if (a.type === 'gnaw'){ face = 'eat'; holding = decorTier('roer') ? null : null; }
+    else if (a.type === 'watch'){ face = 'happy'; flip = true; }
+    else if (a.type === 'dance'){ face = 'happy'; flip = Math.floor(t / 300) % 2 === 0; ry -= (Math.floor(t / 150) % 2) * 2; }
+    else if (a.type === 'look'){ const cat = a.cat && (a.until - t) < 2500; face = cat ? 'sad' : 'wow'; if (cat){ rx += Math.min(24, (2500 - (a.until - t)) / 40); } flip = false; }
   }
   const riding = SCENE.riding && roomId === 'sala';
   if (riding){
     face = 'happy';
     const moving = Math.hypot(SCENE.targetX - SCENE.ratX, SCENE.targetY - SCENE.ratY) > 1;
-    drawWheelBack(ctx, rx, ry - WHEEL_R + 2, WHEEL_R);
+    drawWheelBack(ctx, rx, ry - WHEEL_R + 2, WHEEL_R, WHEEL_COLORS[decorTier('roda')]);
     ry = ry - 4 + (moving ? (Math.floor(t / 120) % 2) : 0);
   }
   drawRat(ctx, rx, ry, {
-    stage:S.stage, form:S.form, skin:S.skin, hat:S.hat, outfit:S.outfit, face, t, flip, sleeping:S.sleeping, holding
+    stage:S.stage, form:S.form, skin:S.skin, hat:S.hat, outfit:S.outfit, face, t, flip, sleeping, holding
   });
-  if (riding) drawWheelFront(ctx, rx, pos.y - WHEEL_R + 2, WHEEL_R, SCENE.wheelAng, 0.55);
-  if (a && a.type === 'bath'){
+  if (riding) drawWheelFront(ctx, rx, pos.y - WHEEL_R + 2, WHEEL_R, SCENE.wheelAng, 0.55, WHEEL_COLORS[decorTier('roda')]);
+  if (a && a.type === 'nap'){ const rr = decorRect('rede'); const def = decorDef('rede'); ctx.save(); ctx.globalAlpha = 0.85; rect(ctx, rr.x + Math.round(rr.w / 2) - 11, rr.y + rr.h - 6, 22, 5, decorTier('rede') ? PAL.p : PAL.g); rect(ctx, rr.x + Math.round(rr.w / 2) - 11, rr.y + rr.h - 2, 22, 1, PAL.k); ctx.restore(); }
+  if (a && (a.type === 'bath' || a.type === 'shower')){
     for (let i = 0; i < 8; i++){
       const ph = (t / 400 + i * 0.7) % 1;
       const bx = rx - 16 + ((i * 37) % 32), by = ratTop(S.stage, ry) + 28 - ph * 34;
       oEllipse(ctx, bx, by, 2, 2, '#dff3ff', '#5aa9e6');
     }
   }
+  if (a && a.type === 'gnaw'){ for (let i = 0; i < 3; i++){ const ph = (t / 300 + i * 0.33) % 1; px(ctx, rx - 6 + i * 6 + Math.round(ph * 4), ry - 8 + Math.round(ph * 8), PAL.n); } }
   if (a && a.type === 'evolve'){
     for (let i = 0; i < 6; i++){
       const ph = (t / 500 + i * 0.37) % 1;
@@ -2131,6 +2483,7 @@ function drawRatInRoom(ctx, r, t){
     if (f.kind === 'heart') drawSpr(ctx, 'coracao', f.x, f.y - p * 18, {alpha:1 - p});
     else if (f.kind === 'crumb') px(ctx, f.x + p * f.vx, f.y + p * 10, PAL.Y);
     else if (f.kind === 'brilho') drawSpr(ctx, 'brilho', f.x, f.y - p * 6, {alpha:1 - p});
+    else if (f.kind === 'coin') drawSpr(ctx, 'moeda', f.x, f.y - p * 22, {alpha:1 - p});
   }
   if (!S.sleeping && !a) drawNeedsHint(ctx, t, rx, ry);
 }
@@ -2391,21 +2744,32 @@ const UI = (() => {
       list += Object.keys(OUTFITS).map(k => {
         const owned = S.outfits.includes(k), on = S.outfit === k;
         const icon = '<img class="ico" alt="" src="' + outfitIconURL(k) + '">';
-        return row(owned ? 'wearOutfit' : 'buy', owned ? k : 'outfit:' + k, icon, OUTFITS[k].name, owned ? (on ? 'usando' : 'usar') : OUTFITS[k].price + '', owned ? 'owned' : '');
+        return row(owned ? 'wearOutfit' : 'buy', owned ? k : 'outfit:' + k, icon, OUTFITS[k].name, owned ? (on ? 'usando' : 'usar') : outfitPrice(k) + '', owned ? 'owned' : '');
       }).join('');
     } else if (tab === 'home'){
+      const fi = (draw, w, h) => '<img class="ico" alt="" src="' + furnIconURL(draw, w, h) + '">';
       for (const room of ROOMS){
+        const where = 'no ' + (room.id === 'sala' || room.id === 'cozinha' ? room.name.toLowerCase().replace(/^/, '') : room.name.toLowerCase());
+        const inRoomTxt = (room.id === 'sala' || room.id === 'cozinha') ? 'na ' + room.name.toLowerCase() : 'no ' + room.name.toLowerCase();
         list += '<h3>' + esc(room.name) + ' · móveis</h3>';
         list += room.slots.map(key => {
           const f = FURN[key], up = hasUpgrade(key), t1 = f.tiers[1];
-          const icon = '<img class="ico" alt="" src="' + furnIconURL(t1.draw, t1.w, t1.h) + '">';
-          return row(up ? 'none' : 'buy', up ? key : 'furn:' + key, icon, t1.name, up ? 'na ' + room.name.toLowerCase() : t1.price + '', up ? 'owned' : '');
+          return row(up ? 'none' : 'buy', up ? key : 'furn:' + key, fi(t1.draw, t1.w, t1.h), t1.name, up ? inRoomTxt : t1.price + '', up ? 'owned' : '');
         }).join('');
-        list += '<h3>' + esc(room.name) + ' · decoração</h3>';
+        list += '<h3>' + esc(room.name) + ' · decoração e brinquedos</h3>';
         list += Object.keys(DECOR).filter(k => DECOR[k].room === room.id).map(k => {
           const d = DECOR[k], owned = S.decor.includes(k), paper = d.kind === 'paper';
-          const icon = paper ? sprImg('brilho') : d.kind === 'rug' ? sprImg('coracao') : d.draw ? '<img class="ico" alt="" src="' + furnIconURL(d.draw, d.w, d.h) + '">' : sprImg(d.spr || k);
-          const meta = owned ? (paper ? (S.paper === k ? 'usando' : 'usar') : 'na ' + room.name.toLowerCase()) : d.price + '';
+          if (d.tiers){
+            const tier = owned ? decorTier(k) : -1;
+            let rows = '';
+            if (tier < 0) rows += row('buy', 'decor:' + k + ':0', fi(d.tiers[0].draw, d.tiers[0].w, d.tiers[0].h), d.tiers[0].name, d.tiers[0].price + '', '');
+            if (tier === 0) rows += row('none', k, fi(d.tiers[0].draw, d.tiers[0].w, d.tiers[0].h), d.tiers[0].name, inRoomTxt, 'owned');
+            if (tier < 1) rows += row('buy', 'decor:' + k + ':1', fi(d.tiers[1].draw, d.tiers[1].w, d.tiers[1].h), d.tiers[1].name, d.tiers[1].price + '', '');
+            else rows += row('none', k, fi(d.tiers[1].draw, d.tiers[1].w, d.tiers[1].h), d.tiers[1].name, inRoomTxt, 'owned');
+            return rows;
+          }
+          const icon = paper ? sprImg('brilho') : d.kind === 'rug' ? sprImg('coracao') : d.draw ? fi(d.draw, d.w, d.h) : sprImg(d.spr || k);
+          const meta = owned ? (paper ? (S.paper === k ? 'usando' : 'usar') : inRoomTxt) : d.price + '';
           return row(owned ? (paper ? 'paper' : 'none') : 'buy', owned ? k : 'decor:' + k, icon, d.name, meta, owned ? 'owned' : '');
         }).join('');
       }
@@ -2424,8 +2788,8 @@ const UI = (() => {
     open('shop', h, {
       tab:t => { SFX.play('blip'); shop(t); },
       buy:arg => {
-        const [cat, key] = arg.split(':');
-        const r = buy(cat, key);
+        const [cat, key, tier] = arg.split(':');
+        const r = buy(cat, key, tier != null ? parseInt(tier, 10) : undefined);
         SFX.play(r.ok ? 'buy' : 'no');
         toast(r.msg, 1400);
         if (r.ok){ shop(tab); if (cat === 'furn' || cat === 'decor'){ const room = ROOMS.findIndex(x => x.id === (cat === 'furn' ? FURN[key].room : DECOR[key].room)); if (room >= 0 && room !== SCENE.room) goRoom(room); } }
@@ -3484,6 +3848,7 @@ const GAMES = (() => {
     if (!S.started) return;
     const id = ICONS[i].id;
     if (SCENE.riding && id !== 'status' && id !== 'loja' && id !== 'config') stopRide();
+    if (S.hidden && (id === 'comer' || id === 'luz' || id === 'banho' || id === 'brincar' || id === 'remedio')){ S.hidden = false; SCENE.anim = null; }
     switch (id){
       case 'comer':
         inRoom(1, () => UI.foodMenu(k => {
@@ -3493,7 +3858,7 @@ const GAMES = (() => {
         }));
         break;
       case 'luz':
-        inRoom(0, () => {
+        inRoom(roomIndex('quarto'), () => {
           const r = toggleLight();
           SFX.play(S.sleeping ? 'sleep' : 'wake');
           if (!S.sleeping){ SCENE.ratX = bedSpot().x; SCENE.ratY = LAY.walkTop; randomWalkTarget(); }
@@ -3556,7 +3921,7 @@ const GAMES = (() => {
       drawScene(ctx, now);
       processEvents();
       if (S.started && UI.current() !== 'title'){
-        UI.topbar(ROOMS[SCENE.room].name + (S.sleeping ? ' · zzz' : ''), S.coins);
+        UI.topbar(ROOMS[SCENE.room].name + (S.sleeping ? ' · zzz' : S.hidden ? ' · escondido' : ''), S.coins);
         UI.nav(d => { SFX.play('blip'); goRoom(SCENE.room + d, d); });
       } else { UI.hideTop(); UI.hideNav(); }
     }
@@ -3577,22 +3942,27 @@ const GAMES = (() => {
       SCENE.sel = i; SFX.play('ok'); activate(i); return;
     }
     if (y < LAY.top) return;
-    if (ROOMS[SCENE.room].id === 'sala' && S.decor.includes('roda') && !S.sleeping){
-      if (SCENE.riding){
-        const pos = ratPos('sala');
-        if (pos && Math.abs(x - pos.x) < 20 && y > pos.y - 38 && y < pos.y + 8){
-          stopRide(); SFX.play('back'); UI.toast(S.name + ' saiu da rodinha.', 1200); return;
-        }
-        if (y >= LAY.floorY && y < H - LAY.bar){
-          SCENE.targetX = Math.min(W - 16, Math.max(16, x)); SCENE.targetY = Math.min(LAY.walkBottom, Math.max(LAY.walkTop, y));
-          SFX.play('blip'); return;
-        }
-      } else {
-        const r = wheelRect();
-        if (x >= r.x - 2 && x <= r.x + r.w + 2 && y >= r.y - 2 && y <= r.y + r.h + 2){
-          startRide(); SFX.play('ok'); UI.toast('Toque no chão para correr. Toque nele para sair.', 2400); return;
-        }
+    if (SCENE.riding && ROOMS[SCENE.room].id === 'sala'){
+      const pos = ratPos('sala');
+      if (pos && Math.abs(x - pos.x) < 20 && y > pos.y - 38 && y < pos.y + 8){
+        stopRide(); SFX.play('back'); UI.toast(S.name + ' saiu da rodinha.', 1200); return;
       }
+      if (y >= LAY.floorY && y < H - LAY.bar){
+        SCENE.targetX = Math.min(W - 16, Math.max(16, x)); SCENE.targetY = Math.min(LAY.walkBottom, Math.max(LAY.walkTop, y));
+        SFX.play('blip'); return;
+      }
+    }
+    const item = interactiveAt(x, y);
+    if (item){
+      if (S.sleeping){ UI.toast('Shh... ' + S.name + ' está dormindo.', 1200); return; }
+      if (item === 'roda'){
+        if (S.hidden){ UI.toast(S.name + ' está escondido na casinha.', 1200); return; }
+        startRide(); SFX.play('ok'); UI.toast('Toque no chão para correr. Toque nele para sair.', 2400); return;
+      }
+      const r = useItem(item);
+      if (!r.ok) SFX.play('no');
+      if (r.msg) UI.toast(r.msg, r.ok ? 1600 : 1800);
+      return;
     }
     for (let i = 0; i < S.poops; i++){
       const p = poopSpot(i);

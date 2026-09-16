@@ -42,6 +42,7 @@
     if (!S.started) return;
     const id = ICONS[i].id;
     if (SCENE.riding && id !== 'status' && id !== 'loja' && id !== 'config') stopRide();
+    if (S.hidden && (id === 'comer' || id === 'luz' || id === 'banho' || id === 'brincar' || id === 'remedio')){ S.hidden = false; SCENE.anim = null; }
     switch (id){
       case 'comer':
         inRoom(1, () => UI.foodMenu(k => {
@@ -51,7 +52,7 @@
         }));
         break;
       case 'luz':
-        inRoom(0, () => {
+        inRoom(roomIndex('quarto'), () => {
           const r = toggleLight();
           SFX.play(S.sleeping ? 'sleep' : 'wake');
           if (!S.sleeping){ SCENE.ratX = bedSpot().x; SCENE.ratY = LAY.walkTop; randomWalkTarget(); }
@@ -114,7 +115,7 @@
       drawScene(ctx, now);
       processEvents();
       if (S.started && UI.current() !== 'title'){
-        UI.topbar(ROOMS[SCENE.room].name + (S.sleeping ? ' · zzz' : ''), S.coins);
+        UI.topbar(ROOMS[SCENE.room].name + (S.sleeping ? ' · zzz' : S.hidden ? ' · escondido' : ''), S.coins);
         UI.nav(d => { SFX.play('blip'); goRoom(SCENE.room + d, d); });
       } else { UI.hideTop(); UI.hideNav(); }
     }
@@ -135,22 +136,27 @@
       SCENE.sel = i; SFX.play('ok'); activate(i); return;
     }
     if (y < LAY.top) return;
-    if (ROOMS[SCENE.room].id === 'sala' && S.decor.includes('roda') && !S.sleeping){
-      if (SCENE.riding){
-        const pos = ratPos('sala');
-        if (pos && Math.abs(x - pos.x) < 20 && y > pos.y - 38 && y < pos.y + 8){
-          stopRide(); SFX.play('back'); UI.toast(S.name + ' saiu da rodinha.', 1200); return;
-        }
-        if (y >= LAY.floorY && y < H - LAY.bar){
-          SCENE.targetX = Math.min(W - 16, Math.max(16, x)); SCENE.targetY = Math.min(LAY.walkBottom, Math.max(LAY.walkTop, y));
-          SFX.play('blip'); return;
-        }
-      } else {
-        const r = wheelRect();
-        if (x >= r.x - 2 && x <= r.x + r.w + 2 && y >= r.y - 2 && y <= r.y + r.h + 2){
-          startRide(); SFX.play('ok'); UI.toast('Toque no chão para correr. Toque nele para sair.', 2400); return;
-        }
+    if (SCENE.riding && ROOMS[SCENE.room].id === 'sala'){
+      const pos = ratPos('sala');
+      if (pos && Math.abs(x - pos.x) < 20 && y > pos.y - 38 && y < pos.y + 8){
+        stopRide(); SFX.play('back'); UI.toast(S.name + ' saiu da rodinha.', 1200); return;
       }
+      if (y >= LAY.floorY && y < H - LAY.bar){
+        SCENE.targetX = Math.min(W - 16, Math.max(16, x)); SCENE.targetY = Math.min(LAY.walkBottom, Math.max(LAY.walkTop, y));
+        SFX.play('blip'); return;
+      }
+    }
+    const item = interactiveAt(x, y);
+    if (item){
+      if (S.sleeping){ UI.toast('Shh... ' + S.name + ' está dormindo.', 1200); return; }
+      if (item === 'roda'){
+        if (S.hidden){ UI.toast(S.name + ' está escondido na casinha.', 1200); return; }
+        startRide(); SFX.play('ok'); UI.toast('Toque no chão para correr. Toque nele para sair.', 2400); return;
+      }
+      const r = useItem(item);
+      if (!r.ok) SFX.play('no');
+      if (r.msg) UI.toast(r.msg, r.ok ? 1600 : 1800);
+      return;
     }
     for (let i = 0; i < S.poops; i++){
       const p = poopSpot(i);

@@ -224,21 +224,32 @@ const UI = (() => {
       list += Object.keys(OUTFITS).map(k => {
         const owned = S.outfits.includes(k), on = S.outfit === k;
         const icon = '<img class="ico" alt="" src="' + outfitIconURL(k) + '">';
-        return row(owned ? 'wearOutfit' : 'buy', owned ? k : 'outfit:' + k, icon, OUTFITS[k].name, owned ? (on ? 'usando' : 'usar') : OUTFITS[k].price + '', owned ? 'owned' : '');
+        return row(owned ? 'wearOutfit' : 'buy', owned ? k : 'outfit:' + k, icon, OUTFITS[k].name, owned ? (on ? 'usando' : 'usar') : outfitPrice(k) + '', owned ? 'owned' : '');
       }).join('');
     } else if (tab === 'home'){
+      const fi = (draw, w, h) => '<img class="ico" alt="" src="' + furnIconURL(draw, w, h) + '">';
       for (const room of ROOMS){
+        const where = 'no ' + (room.id === 'sala' || room.id === 'cozinha' ? room.name.toLowerCase().replace(/^/, '') : room.name.toLowerCase());
+        const inRoomTxt = (room.id === 'sala' || room.id === 'cozinha') ? 'na ' + room.name.toLowerCase() : 'no ' + room.name.toLowerCase();
         list += '<h3>' + esc(room.name) + ' · móveis</h3>';
         list += room.slots.map(key => {
           const f = FURN[key], up = hasUpgrade(key), t1 = f.tiers[1];
-          const icon = '<img class="ico" alt="" src="' + furnIconURL(t1.draw, t1.w, t1.h) + '">';
-          return row(up ? 'none' : 'buy', up ? key : 'furn:' + key, icon, t1.name, up ? 'na ' + room.name.toLowerCase() : t1.price + '', up ? 'owned' : '');
+          return row(up ? 'none' : 'buy', up ? key : 'furn:' + key, fi(t1.draw, t1.w, t1.h), t1.name, up ? inRoomTxt : t1.price + '', up ? 'owned' : '');
         }).join('');
-        list += '<h3>' + esc(room.name) + ' · decoração</h3>';
+        list += '<h3>' + esc(room.name) + ' · decoração e brinquedos</h3>';
         list += Object.keys(DECOR).filter(k => DECOR[k].room === room.id).map(k => {
           const d = DECOR[k], owned = S.decor.includes(k), paper = d.kind === 'paper';
-          const icon = paper ? sprImg('brilho') : d.kind === 'rug' ? sprImg('coracao') : d.draw ? '<img class="ico" alt="" src="' + furnIconURL(d.draw, d.w, d.h) + '">' : sprImg(d.spr || k);
-          const meta = owned ? (paper ? (S.paper === k ? 'usando' : 'usar') : 'na ' + room.name.toLowerCase()) : d.price + '';
+          if (d.tiers){
+            const tier = owned ? decorTier(k) : -1;
+            let rows = '';
+            if (tier < 0) rows += row('buy', 'decor:' + k + ':0', fi(d.tiers[0].draw, d.tiers[0].w, d.tiers[0].h), d.tiers[0].name, d.tiers[0].price + '', '');
+            if (tier === 0) rows += row('none', k, fi(d.tiers[0].draw, d.tiers[0].w, d.tiers[0].h), d.tiers[0].name, inRoomTxt, 'owned');
+            if (tier < 1) rows += row('buy', 'decor:' + k + ':1', fi(d.tiers[1].draw, d.tiers[1].w, d.tiers[1].h), d.tiers[1].name, d.tiers[1].price + '', '');
+            else rows += row('none', k, fi(d.tiers[1].draw, d.tiers[1].w, d.tiers[1].h), d.tiers[1].name, inRoomTxt, 'owned');
+            return rows;
+          }
+          const icon = paper ? sprImg('brilho') : d.kind === 'rug' ? sprImg('coracao') : d.draw ? fi(d.draw, d.w, d.h) : sprImg(d.spr || k);
+          const meta = owned ? (paper ? (S.paper === k ? 'usando' : 'usar') : inRoomTxt) : d.price + '';
           return row(owned ? (paper ? 'paper' : 'none') : 'buy', owned ? k : 'decor:' + k, icon, d.name, meta, owned ? 'owned' : '');
         }).join('');
       }
@@ -257,8 +268,8 @@ const UI = (() => {
     open('shop', h, {
       tab:t => { SFX.play('blip'); shop(t); },
       buy:arg => {
-        const [cat, key] = arg.split(':');
-        const r = buy(cat, key);
+        const [cat, key, tier] = arg.split(':');
+        const r = buy(cat, key, tier != null ? parseInt(tier, 10) : undefined);
         SFX.play(r.ok ? 'buy' : 'no');
         toast(r.msg, 1400);
         if (r.ok){ shop(tab); if (cat === 'furn' || cat === 'decor'){ const room = ROOMS.findIndex(x => x.id === (cat === 'furn' ? FURN[key].room : DECOR[key].room)); if (room >= 0 && room !== SCENE.room) goRoom(room); } }
