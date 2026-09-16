@@ -13,7 +13,14 @@ const FOODS = {
   leite:   {name:'Leite',    price:4,  hunger:15, fun:0,  w:2,  energy:8, desc:'Um copinho antes de dormir.'},
   pizza:   {name:'Pizza',    price:10, hunger:40, fun:15, w:7,  desc:'Fatia de queijo. Óbvio.'},
   brigadeiro:{name:'Brigadeiro', price:6, hunger:10, fun:18, w:5, desc:'Festa brasileira. Engorda.'},
-  sorvete: {name:'Sorvete',  price:7,  hunger:12, fun:16, w:4,  desc:'Geladinho de morango.'}
+  sorvete: {name:'Sorvete',  price:7,  hunger:12, fun:16, w:4,  desc:'Geladinho de morango.'},
+  // energéticas: também enchem a barra de energia
+  banana:  {name:'Banana',   price:3,  hunger:18, fun:2,  w:2,  energy:12, desc:'Potássio pra rodinha.'},
+  suco:    {name:'Suco de laranja', price:5, hunger:10, fun:4, w:1, energy:20, hygiene:2, desc:'Geladinho e vitaminado.'},
+  cafe:    {name:'Cafezinho', price:6, hunger:5,  fun:5,  w:1,  energy:30, desc:'Um golinho e já era o sono.'},
+  castanhas:{name:'Castanhas', price:7, hunger:20, fun:3, w:3,  energy:22, desc:'Mix crocante. Dá gás.'},
+  mel:     {name:'Pote de mel', price:9, hunger:15, fun:8, w:4, energy:30, desc:'Doce e dá pique.'},
+  acai:    {name:'Açaí',     price:12, hunger:25, fun:15, w:5,  energy:35, desc:'Tigela roxa. Energia total.'}
 };
 const SAVE_KEY = 'ratinho-virtual.save.v1';
 const HOUR = 3600000;
@@ -255,7 +262,7 @@ function tick(ms){
     S.energy = clamp(S.energy + (hasUpgrade('cama') ? 100 / 1.5 : 100 / 3) * h);
     if (S.energy >= 100){ S.sleeping = false; S.pending.push('woke'); addXp(8); }
   } else {
-    S.energy = clamp(S.energy - 6 * h);
+    S.energy = clamp(S.energy - 4 * h);
     if (S.energy <= 10){ S.sleeping = true; S.pending.push('autosleep'); }
   }
   S.age += h;
@@ -379,7 +386,7 @@ function finishGame(id, score, coins){
   S.coins += coins;
   addXp(8 + Math.min(12, coins));
   S.fun = clamp(S.fun + 25);
-  S.energy = clamp(S.energy - 4);
+  S.energy = clamp(S.energy - 2);
   S.weight = clamp(S.weight - 2, 20, 200);
   S.stats.played++;
   if (!S.best[id] || score > S.best[id]) S.best[id] = score;

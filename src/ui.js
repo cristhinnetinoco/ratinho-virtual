@@ -164,7 +164,7 @@ const UI = (() => {
     } else {
       h += '<div class="list">' + keys.map(k =>
         '<button class="opt" data-act="pick" data-arg="' + k + '">' + sprImg(k) +
-        '<span class="name">' + esc(FOODS[k].name) + '</span><span class="meta">x' + S.inv[k] + '</span></button>').join('') + '</div>';
+        '<span class="name">' + esc(FOODS[k].name) + (FOODS[k].energy ? ' ⚡' : '') + '</span><span class="meta">x' + S.inv[k] + '</span></button>').join('') + '</div>';
     }
     h += '<button class="opt center" data-act="back">Voltar</button></div>';
     open('food', h, {pick:k => onPick(k), back:() => { SFX.play('back'); close(); }, shop:() => shop('food')});
@@ -249,7 +249,10 @@ const UI = (() => {
     const swatch = col => '<span class="ico" style="background:' + col + ';border:2px solid #3a2a4a;border-radius:50%"></span>';
     let list = '';
     if (tab === 'food'){
-      list = Object.keys(FOODS).map(k => row('buy', 'food:' + k, sprImg(k), FOODS[k].name, foodPrice(k) + ' · x' + (S.inv[k] || 0), '')).join('');
+      const foodRow = k => row('buy', 'food:' + k, sprImg(k), FOODS[k].name + (FOODS[k].energy ? ' ⚡' : ''), foodPrice(k) + ' · x' + (S.inv[k] || 0), '');
+      const fk = Object.keys(FOODS);
+      list = '<h3>Comidas</h3>' + fk.filter(k => !FOODS[k].energy).map(foodRow).join('') +
+             '<h3>Energéticas ⚡ (também enchem a energia)</h3>' + fk.filter(k => FOODS[k].energy).map(foodRow).join('');
     } else if (tab === 'wear'){
       const groups = [['baby', 'Para todas as idades'], ['young', 'Adolescente'], ['adult', 'Adulto']];
       const locked = st => stageRank(st) > stageRank(S.stage);

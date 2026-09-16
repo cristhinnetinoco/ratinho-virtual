@@ -5,7 +5,7 @@ const GAMES = (() => {
     {id:'corrida',   name:'Corrida na Cozinha', icon:'ratoeira', how:'Toque na tela para pular as ratoeiras e o gato. Pegue os queijos. Vai ficando mais rápido!'},
     {id:'chuva',     name:'Chuva de Comida',    icon:'biscoito', how:'Arraste o dedo para mover o rato. Pegue a comida que cai e desvie das meias e dos sabonetes. Você tem 3 vidas.'},
     {id:'memoria',   name:'Jogo da Memória',    icon:'moeda',    how:'Encontre os pares antes do tempo acabar. A cada rodada o tabuleiro cresce. Acabou o tempo, acabou o jogo.'},
-    {id:'labirinto', name:'Labirinto',          icon:'queijo',   how:'Leve o rato até o queijo antes do tempo acabar. Cada fase é maior e mais difícil. Use as setas ou deslize o dedo.'}
+    {id:'labirinto', name:'Labirinto',          icon:'queijo',   how:'Leve o rato até o queijo em 16 segundos. Cada fase é maior e mais difícil. Use as setas ou deslize o dedo.'}
   ];
   let cur = null, curId = null, onEnd = null;
   const inp = {down:false, x:0, y:0, sx:0, sy:0, tap:false, swipe:null, btn:null};
@@ -183,10 +183,11 @@ const GAMES = (() => {
         x += (tx - x) * Math.min(1, dt / 90);
         spawn -= dt;
         if (spawn <= 0){
-          const bad = Math.random() < 0.28;
+          const bad = Math.random() < 0.18 + Math.min(0.14, t / 400000);
           const g = GOOD[Math.floor(Math.random() * GOOD.length)];
-          items.push({x:8 + Math.random() * (W - 16), y:14, kind:bad ? BAD[Math.floor(Math.random() * 2)] : g[0], val:bad ? 0 : g[1], bad, vy:1.4 + Math.random() * 0.9 + t / 60000});
-          gap = Math.max(380, 900 - t / 80); spawn = gap;
+          // começa lento (0.9 a 1.4 px/frame) e acelera até +1.6 em uns 70 s
+          items.push({x:8 + Math.random() * (W - 16), y:14, kind:bad ? BAD[Math.floor(Math.random() * 2)] : g[0], val:bad ? 0 : g[1], bad, vy:0.9 + Math.random() * 0.5 + Math.min(1.6, t / 45000)});
+          gap = Math.max(350, 1100 - t / 120); spawn = gap;
         }
         for (const it of items){
           it.y += it.vy * F(dt);
@@ -315,7 +316,7 @@ const GAMES = (() => {
       }
       rat.c = rat.r = rat.x = rat.y = rat.tc = rat.tr = 0; rat.moving = false;
       /* tempo da fase: 8 s na primeira, +2 s por fase */
-      total = (8 + (level - 1) * 2) * 1000;
+      total = 16000;
       timeLeft = total;
     }
     build();

@@ -14,7 +14,7 @@
   function Torre(){
     const BH = 9, baseY = H - 34;
     const blocks = [{x:Math.round(W / 2 - 22), w:44}];
-    let cur = {x:0, w:44, dir:1}, speed = 1.3, over = false, score = 0, cam = 0, perfect = 0, flashT = 0;
+    let cur = {x:0, w:44, dir:1}, speed = 1.0, over = false, score = 0, cam = 0, perfect = 0, flashT = 0;
     const levelTop = i => baseY - (i + 1) * BH;
     function cheese(ctx, x, y, w, h, ghost){
       box(ctx, x, y, w, h, ghost ? '#ffe680' : PAL.y, PAL.k);
@@ -39,7 +39,7 @@
             else { blocks.push({x:Math.round(x0), w:Math.round(ov)}); score += 1; SFX.play('ok'); }
             const nw = blocks[blocks.length - 1].w;
             cur = {x:cur.dir > 0 ? 0 : W - nw, w:nw, dir:cur.dir};
-            speed = Math.min(4.6, speed + 0.13);
+            speed = Math.min(3.6, speed + 0.08);   // acelera devagar: 2.6 na altura 20, teto 3.6
           }
         }
         flashT = Math.max(0, flashT - dt);
@@ -65,7 +65,7 @@
   function Danca(){
     const LX = i => Math.round(W * (i + 0.5) / 3), HIT = H - 64, FALL = 1500, MAXMISS = 10;
     const cols = ['#e05a4e', '#ffd23f', '#3fb7a0'], freqs = [523, 659, 784];
-    let notes = [], t = 0, beat = 500, nextT = 1800, score = 0, combo = 0, misses = 0, over = false, fb = '', fbT = 0, lastLane = 1, flash = 0;
+    let notes = [], t = 0, beat = 650, nextT = 2000, score = 0, combo = 0, misses = 0, over = false, fb = '', fbT = 0, lastLane = 1, flash = 0;
     function hitLane(l){
       let bestN = null, bd = 1e9;
       for (const n of notes){ if (n.done || n.missed || n.lane !== l) continue; const d = Math.abs(n.t - t); if (d < bd){ bd = d; bestN = n; } }
@@ -79,10 +79,10 @@
         if (over) return;
         t += dt; fbT = Math.max(0, fbT - dt); flash = Math.max(0, flash - dt);
         while (nextT < t + FALL + 300){
-          if (Math.random() < 0.72) notes.push({lane:Math.floor(Math.random() * 3), t:nextT});
-          if (Math.random() < 0.15 + Math.min(0.35, t / 240000)) notes.push({lane:Math.floor(Math.random() * 3), t:nextT + beat / 2});
+          if (Math.random() < 0.55 + Math.min(0.25, t / 300000)) notes.push({lane:Math.floor(Math.random() * 3), t:nextT});
+          if (Math.random() < 0.05 + Math.min(0.35, t / 200000)) notes.push({lane:Math.floor(Math.random() * 3), t:nextT + beat / 2});
           nextT += beat;
-          beat = Math.max(280, 500 - t / 450);
+          beat = Math.max(300, 650 - t / 400);   // batida começa em 650 ms e chega a 300 ms em uns 2 min
         }
         if (inp.tap){ inp.tap = false; hitLane(Math.min(2, Math.floor(inp.sx / (W / 3)))); }
         if (inp.btn){ hitLane({A:0, B:1, C:2}[inp.btn] || 0); inp.btn = null; }
@@ -126,15 +126,17 @@
         t += dt; spawn -= dt; flash = Math.max(0, flash - dt);
         if (spawn <= 0){
           const r = Math.random(), kind = r < 0.1 ? 'gold' : r < 0.22 ? 'dark' : 'norm';
-          bubbles.push({x:14 + Math.random() * (W - 28), y:FY - 8, r:4 + Math.random() * 5, vy:0.5 + Math.random() * 0.8 + t / 40000, ph:Math.random() * 6.28, kind});
-          spawn = Math.max(220, 700 - t / 90);
+          // sobe devagar no começo (0.35 a 0.85 px/frame) e acelera até +1.2 em 1 min
+          bubbles.push({x:14 + Math.random() * (W - 28), y:FY - 8, r:5 + Math.random() * 5, vy:0.35 + Math.random() * 0.5 + Math.min(1.2, t / 60000), ph:Math.random() * 6.28, kind});
+          spawn = Math.max(300, 1000 - t / 100);
         }
         const f = F(dt);
         for (const b of bubbles){ b.y -= b.vy * f; b.x += Math.sin(t / 400 + b.ph) * 0.3 * f; }
         if (inp.tap){
           inp.tap = false;
-          let hit = null;
-          for (let i = bubbles.length - 1; i >= 0; i--){ const b = bubbles[i]; if (Math.hypot(b.x - inp.sx, b.y - inp.sy) <= b.r + 4){ hit = b; break; } }
+          // toque generoso: pega a bolha mais próxima até 7 px além da borda dela
+          let hit = null, bd = 1e9;
+          for (const b of bubbles){ const d = Math.hypot(b.x - inp.sx, b.y - inp.sy) - b.r; if (d <= 7 && d < bd){ bd = d; hit = b; } }
           if (hit){
             hit.dead = true;
             if (hit.kind === 'dark'){ lives--; flash = 350; SFX.play('hit'); }
