@@ -39,6 +39,10 @@ body{
   pointer-events:none !important;
 }
 .topbar .coins{display:flex;align-items:center;gap:4px}
+.topbar .lvl{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.85em}
+.topbar .lvl i{display:block;width:4.5em;height:.45em;border:1px solid #fffaf0;background:#1b1233}
+.topbar .lvl b{display:block;height:100%;background:#3fb7a0}
+.opt .star{width:.7em;height:.7em;margin-left:4px;image-rendering:pixelated;vertical-align:middle}
 .topbar .coins img{width:1.8em;height:1.8em;image-rendering:pixelated}
 .nav{
   position:absolute;top:44%;width:2em;height:3em;

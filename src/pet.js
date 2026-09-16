@@ -25,6 +25,7 @@ function newState(){
     hunger:80, energy:80, hygiene:80, fun:80,
     sick:false, sickAcc:0, sleeping:false,
     poops:0, nextPoop:6, weight:30, coins:20, age:0,
+    xp:0, level:1, xpAcc:0,
     stage:'baby', form:'', care:{hunger:0, energy:0, hygiene:0, fun:0, t:0},
     inv:{queijo:3, semente:3},
     hats:[], hat:'', outfits:[], outfit:'',
@@ -58,9 +59,33 @@ function load(){
     S.uses = d.uses || {}; S.bank = d.bank || 0; S.hidden = !!d.hidden;
     if (S.paper && !DECOR[S.paper]) S.paper = '';
     S.room = Math.min(ROOMS.length - 1, Math.max(0, d.room || 0));
+    if (d.xp == null){
+      const st = S.stats || {};
+      S.xp = Math.floor(S.age || 0) + (st.fed || 0) * 4 + (st.played || 0) * 10 + (st.baths || 0) * 5;
+      if (S.stage === 'young') S.xp = Math.max(S.xp, xpForLevel(STAGES.young.level));
+      if (S.stage === 'adult') S.xp = Math.max(S.xp, xpForLevel(STAGES.adult.level));
+      S.level = levelFromXp(S.xp); S.xpAcc = 0;
+    }
     S.pending = [];
     return true;
   } catch (e) { return false; }
+}
+/* ---- niveis ---- */
+function xpNeed(l){ return 30 + (l - 1) * 15; }
+function xpForLevel(l){ let s = 0; for (let i = 1; i < l; i++) s += xpNeed(i); return s; }
+function levelFromXp(xp){ let l = 1; while (l < 99 && xp >= xpForLevel(l + 1)) l++; return l; }
+function stageForLevel(l){ return l >= STAGES.adult.level ? 'adult' : l >= STAGES.young.level ? 'young' : 'baby'; }
+function levelProgress(){ const a = xpForLevel(S.level), b = xpForLevel(S.level + 1); return {cur:S.xp - a, need:b - a, pct:Math.max(0, Math.min(1, (S.xp - a) / (b - a)))}; }
+function addXp(n){
+  if (!S.started || n <= 0) return;
+  S.xp += n;
+  const nl = levelFromXp(S.xp);
+  while (S.level < nl){
+    S.level++; S.coins += 5;
+    S.pending.push('level:' + S.level);
+    const st = stageForLevel(S.level);
+    if (stageRank(st) > stageRank(S.stage)) evolveTo(st);
+  }
 }
 function exportCode(){
   return btoa(unescape(encodeURIComponent(JSON.stringify(S))));
@@ -78,9 +103,6 @@ function importCode(code){
   } catch (e) { return false; }
 }
 
-function stageFor(age){
-  return age >= STAGES.adult.hours ? 'adult' : age >= STAGES.young.hours ? 'young' : 'baby';
-}
 function computeForm(){
   const c = S.care, t = c.t || 1;
   const avg = {hunger:c.hunger / t, energy:c.energy / t, hygiene:c.hygiene / t, fun:c.fun / t};
@@ -104,18 +126,21 @@ function tick(ms){
   if (!S.started) return;
   const h = ms / HOUR;
   const sm = S.sleeping ? 0.5 : 1;
-  S.hunger  = clamp(S.hunger - 2.2 * h * sm);
-  S.fun     = clamp(S.fun - (2.5 + (S.sick ? 1.5 : 0)) * h * sm * (S.hidden ? 0.5 : 1));
+  /* ritmo: da para manter tudo em dia entrando 3 vezes por dia */
+  S.hunger  = clamp(S.hunger - 5 * h * sm);
+  S.fun     = clamp(S.fun - (5 + (S.sick ? 1.5 : 0)) * h * sm * (S.hidden ? 0.5 : 1));
   if (S.decor.includes('cofre')) S.bank = Math.min(S.decorTier && S.decorTier.cofre ? 24 : 12, (S.bank || 0) + h);
-  S.hygiene = clamp(S.hygiene - (1.6 + S.poops * 0.7) * h * (hasUpgrade('pia') ? 0.7 : 1));
+  S.hygiene = clamp(S.hygiene - (3.5 + S.poops * 0.7) * h * (hasUpgrade('pia') ? 0.7 : 1));
   if (S.sleeping){
-    S.energy = clamp(S.energy + (hasUpgrade('cama') ? 18 : 14) * h);
-    if (S.energy >= 100){ S.sleeping = false; S.pending.push('woke'); }
+    S.energy = clamp(S.energy + (hasUpgrade('cama') ? 32 : 25) * h);
+    if (S.energy >= 100){ S.sleeping = false; S.pending.push('woke'); addXp(8); }
   } else {
-    S.energy = clamp(S.energy - 2.8 * h);
+    S.energy = clamp(S.energy - 6 * h);
     if (S.energy <= 10){ S.sleeping = true; S.pending.push('autosleep'); }
   }
   S.age += h;
+  S.xpAcc = (S.xpAcc || 0) + h;
+  while (S.xpAcc >= 1){ S.xpAcc -= 1; addXp(1); }
   if (S.stage === 'young'){
     S.care.hunger += S.hunger * h; S.care.energy += S.energy * h;
     S.care.hygiene += S.hygiene * h; S.care.fun += S.fun * h; S.care.t += h;
@@ -124,7 +149,7 @@ function tick(ms){
     S.nextPoop -= h;
     if (S.nextPoop <= 0){
       if (S.poops < 3){ S.poops++; S.pending.push('poop'); }
-      S.nextPoop = (7 + Math.random() * 5) * (hasUpgrade('privada') ? 1.5 : 1);
+      S.nextPoop = (4 + Math.random() * 3) * (hasUpgrade('privada') ? 1.5 : 1);
     }
   }
   if (!S.sick){
@@ -139,8 +164,6 @@ function tick(ms){
       if (risk > 0 && Math.random() < risk){ S.sick = true; S.pending.push('sick'); break; }
     }
   }
-  const st = stageFor(S.age);
-  if (st !== S.stage) evolveTo(st);
 }
 function simulate(ms){
   let left = Math.max(0, ms);
@@ -182,6 +205,7 @@ function feed(key){
   if (f.hygiene) S.hygiene = clamp(S.hygiene + f.hygiene);
   S.weight = clamp(S.weight + f.w, 20, 200);
   S.stats.fed++;
+  addXp(4);
   save();
   return {ok:true, msg:'Nhac nhac!'};
 }
@@ -200,6 +224,7 @@ function bath(){
   const had = S.poops > 0 || S.hygiene < 100;
   S.hygiene = 100; S.poops = 0; S.stats.baths++;
   if (hasUpgrade('banheira')) S.fun = clamp(S.fun + 5);
+  if (had) addXp(5);
   save();
   return {ok:true, msg:had ? 'Splish splash! Limpinho.' : 'Já estava limpinho!'};
 }
@@ -211,6 +236,7 @@ function cleanPoop(){
 function medicine(){
   if (!S.sick) return {ok:false, msg:S.name + ' está saudável!'};
   S.sick = false; S.sickAcc = 0; S.energy = clamp(S.energy - 5); S.stats.meds++;
+  addXp(2);
   save();
   return {ok:true, msg:'Blergh... mas melhorou!'};
 }
@@ -218,12 +244,13 @@ let _lastPet = 0;
 function petRat(){
   if (S.sleeping) return {ok:false, msg:'Zzz...'};
   const now = Date.now();
-  if (now - _lastPet > 8000){ S.fun = clamp(S.fun + (hasUpgrade('sofa') ? 5 : 3)); S.stats.pets++; _lastPet = now; save(); }
+  if (now - _lastPet > 8000){ S.fun = clamp(S.fun + (hasUpgrade('sofa') ? 5 : 3)); S.stats.pets++; _lastPet = now; addXp(1); save(); }
   return {ok:true, msg:''};
 }
 function finishGame(id, score, coins){
   if (hasUpgrade('estante')) coins += 1;
   S.coins += coins;
+  addXp(8 + Math.min(12, coins));
   S.fun = clamp(S.fun + 25);
   S.energy = clamp(S.energy - 4);
   S.weight = clamp(S.weight - 2, 20, 200);
@@ -236,8 +263,8 @@ function outfitPrice(key){ return Math.max(5, OUTFITS[key].price - (hasUpgrade('
 function buy(cat, key, tier){
   let price, owned = false;
   if (cat === 'food'){ price = foodPrice(key); }
-  else if (cat === 'hat'){ price = HATS[key].price; owned = S.hats.includes(key); }
-  else if (cat === 'outfit'){ price = outfitPrice(key); owned = S.outfits.includes(key); }
+  else if (cat === 'hat'){ price = HATS[key].price; owned = S.hats.includes(key); if (stageRank(HATS[key].stage || 'baby') > stageRank(S.stage)) return {ok:false, msg:'Libera na fase ' + STAGES[HATS[key].stage].name + '.'}; }
+  else if (cat === 'outfit'){ price = outfitPrice(key); owned = S.outfits.includes(key); if (stageRank(OUTFITS[key].stage || 'baby') > stageRank(S.stage)) return {ok:false, msg:'Libera na fase ' + STAGES[OUTFITS[key].stage].name + '.'}; }
   else if (cat === 'decor'){
     const d = DECOR[key];
     if (d.tiers){ tier = tier || 0; price = d.tiers[tier].price; owned = S.decor.includes(key) && decorTier(key) >= tier; }

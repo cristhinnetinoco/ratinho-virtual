@@ -119,6 +119,7 @@ function useItem(key){
   S.uses = S.uses || {}; S.uses[key] = Date.now();
   u.fx(key === 'espelho' ? (hasUpgrade('pia') ? 1 : 0) : decorTier(key));
   S.stats.pets++;
+  addXp(3);
   const r = key === 'espelho' ? furnRect('pia') : decorRect(key);
   const data = {key};
   if (key === 'janela'){ data.cat = Math.random() < 0.25; }

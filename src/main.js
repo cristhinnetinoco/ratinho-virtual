@@ -93,7 +93,8 @@
       const ev = S.pending.shift();
       if (ev.indexOf('evolve:') === 0){
         SFX.play('evolve'); setAnim('evolve', 2600); UI.evolved(ev.split(':')[1]); save(); return;
-      } else if (ev === 'sick'){ SFX.play('sick'); UI.toast(S.name + ' ficou doente!'); }
+      } else if (ev.indexOf('level:') === 0){ SFX.play('win'); UI.toast('Nível ' + ev.split(':')[1] + '! +5 moedas', 1800); addHearts(3); }
+      else if (ev === 'sick'){ SFX.play('sick'); UI.toast(S.name + ' ficou doente!'); }
       else if (ev === 'woke'){ SFX.play('wake'); UI.toast(S.name + ' acordou sozinho!'); SCENE.ratX = bedSpot().x; SCENE.ratY = LAY.walkTop; randomWalkTarget(); }
       else if (ev === 'autosleep'){ SFX.play('sleep'); UI.toast(S.name + ' caiu no sono de tanto cansaço.'); }
     }
@@ -115,7 +116,7 @@
       drawScene(ctx, now);
       processEvents();
       if (S.started && UI.current() !== 'title'){
-        UI.topbar(ROOMS[SCENE.room].name + (S.sleeping ? ' · zzz' : S.hidden ? ' · escondido' : ''), S.coins);
+        UI.topbar(ROOMS[SCENE.room].name + (S.sleeping ? ' · zzz' : S.hidden ? ' · escondido' : ''), S.coins, S.level, levelProgress().pct);
         UI.nav(d => { SFX.play('blip'); goRoom(SCENE.room + d, d); });
       } else { UI.hideTop(); UI.hideNav(); }
     }

@@ -70,9 +70,11 @@ const UI = (() => {
   }
 
   /* ---------- barra de cima e setas de comodo ---------- */
-  function topbar(roomName, coins){
+  function topbar(roomName, coins, level, pct){
     const t = fixed('topbar');
-    const html = '<span>' + esc(roomName) + '</span><span class="coins"><img alt="" src="' + sprURL('moeda') + '">' + coins + '</span>';
+    const html = '<span>' + esc(roomName) + '</span>' +
+      '<span class="lvl">NV ' + level + '<i><b style="width:' + Math.round(pct * 100) + '%"></b></i></span>' +
+      '<span class="coins"><img alt="" src="' + sprURL('moeda') + '">' + coins + '</span>';
     if (t.innerHTML !== html) t.innerHTML = html;
     t.hidden = false;
   }
@@ -185,11 +187,15 @@ const UI = (() => {
   function status(){
     const ageH = S.age, days = Math.floor(ageH / 24), hrs = Math.floor(ageH % 24);
     const st = STAGES[S.stage].name, fm = S.stage === 'adult' && FORMS[S.form] ? FORMS[S.form].name : '';
+    const lp = levelProgress();
+    const nextStage = S.stage === 'baby' ? 'Adolescente no nível ' + STAGES.young.level : S.stage === 'young' ? 'Adulto no nível ' + STAGES.adult.level : '';
     const h = '<div class="panel"><h2>' + esc(S.name) + '</h2>' +
       '<div class="bars">' + bar('queijo', 'Fome', S.hunger) + bar('zzz', 'Energia', S.energy) +
       bar('sabonete', 'Higiene', S.hygiene) + bar('coracao', 'Diversão', S.fun) + '</div>' +
       '<div class="kv">' +
+      '<b>Nível</b><span>' + S.level + ' · ' + lp.cur + '/' + lp.need + ' xp</span>' +
       '<b>Fase</b><span>' + st + (fm ? ' · ' + esc(fm) : '') + '</span>' +
+      (nextStage ? '<b>Próxima</b><span>' + nextStage + '</span>' : '') +
       '<b>Idade</b><span>' + days + 'd ' + hrs + 'h</span>' +
       '<b>Peso</b><span>' + Math.round(S.weight) + 'g</span>' +
       '<b>Saúde</b><span>' + (S.sick ? 'Doente!' : 'Boa') + '</span>' +
@@ -207,25 +213,33 @@ const UI = (() => {
     const tabs = [['food', 'Comida'], ['wear', 'Roupas'], ['home', 'Toca'], ['skin', 'Cores']];
     const row = (act, key, icon, name, meta, cls) =>
       '<button class="opt ' + cls + '" data-act="' + act + '" data-arg="' + key + '">' + icon +
-      '<span class="name">' + esc(name) + '</span><span class="meta">' + meta + '</span></button>';
+      '<span class="name">' + (name.indexOf('<img') >= 0 ? esc(name.split('<img')[0]) + '<img' + name.split('<img')[1] : esc(name)) + '</span><span class="meta">' + meta + '</span></button>';
     const swatch = col => '<span class="ico" style="background:' + col + ';border:2px solid #3a2a4a;border-radius:50%"></span>';
     let list = '';
     if (tab === 'food'){
       list = Object.keys(FOODS).map(k => row('buy', 'food:' + k, sprImg(k), FOODS[k].name, foodPrice(k) + ' · x' + (S.inv[k] || 0), '')).join('');
     } else if (tab === 'wear'){
-      list += '<h3>Chapéus e acessórios</h3>';
-      list += row('wearHat', '', sprImg('brilho'), 'Sem chapéu', S.hat ? 'tirar' : 'ok', S.hat ? '' : 'owned');
-      list += Object.keys(HATS).map(k => {
-        const owned = S.hats.includes(k), on = S.hat === k;
-        return row(owned ? 'wearHat' : 'buy', owned ? k : 'hat:' + k, sprImg(k), HATS[k].name, owned ? (on ? 'usando' : 'usar') : HATS[k].price + '', owned ? 'owned' : '');
-      }).join('');
+      const groups = [['baby', 'Para todas as idades'], ['young', 'Adolescente'], ['adult', 'Adulto']];
+      const locked = st => stageRank(st) > stageRank(S.stage);
+      list += '<h3>Acessórios</h3>';
+      list += row('wearHat', '', sprImg('brilho'), 'Sem acessório', S.hat ? 'tirar' : 'ok', S.hat ? '' : 'owned');
+      for (const [stg, title] of groups){
+        list += '<h3>' + title + (locked(stg) ? ' · libera no nível ' + STAGES[stg].level : '') + '</h3>';
+        list += Object.keys(HATS).filter(k => (HATS[k].stage || 'baby') === stg).map(k => {
+          const owned = S.hats.includes(k), on = S.hat === k, lk = !owned && locked(stg);
+          return row(owned ? 'wearHat' : lk ? 'none' : 'buy', owned ? k : 'hat:' + k, sprImg(k), HATS[k].name, owned ? (on ? 'usando' : 'usar') : lk ? 'bloqueado' : HATS[k].price + '', owned ? 'owned' : lk ? 'disabled' : '');
+        }).join('');
+      }
       list += '<h3>Roupas</h3>';
       list += row('wearOutfit', '', sprImg('brilho'), 'Sem roupa', S.outfit ? 'tirar' : 'ok', S.outfit ? '' : 'owned');
-      list += Object.keys(OUTFITS).map(k => {
-        const owned = S.outfits.includes(k), on = S.outfit === k;
-        const icon = '<img class="ico" alt="" src="' + outfitIconURL(k) + '">';
-        return row(owned ? 'wearOutfit' : 'buy', owned ? k : 'outfit:' + k, icon, OUTFITS[k].name, owned ? (on ? 'usando' : 'usar') : outfitPrice(k) + '', owned ? 'owned' : '');
-      }).join('');
+      for (const [stg, title] of groups){
+        list += '<h3>' + title + (locked(stg) ? ' · libera no nível ' + STAGES[stg].level : '') + '</h3>';
+        list += Object.keys(OUTFITS).filter(k => (OUTFITS[k].stage || 'baby') === stg).map(k => {
+          const owned = S.outfits.includes(k), on = S.outfit === k, lk = !owned && locked(stg);
+          const icon = '<img class="ico" alt="" src="' + outfitIconURL(k) + '">';
+          return row(owned ? 'wearOutfit' : lk ? 'none' : 'buy', owned ? k : 'outfit:' + k, icon, OUTFITS[k].name, owned ? (on ? 'usando' : 'usar') : lk ? 'bloqueado' : outfitPrice(k) + '', owned ? 'owned' : lk ? 'disabled' : '');
+        }).join('');
+      }
     } else if (tab === 'home'){
       const fi = (draw, w, h) => '<img class="ico" alt="" src="' + furnIconURL(draw, w, h) + '">';
       for (const room of ROOMS){
@@ -241,11 +255,13 @@ const UI = (() => {
           const d = DECOR[k], owned = S.decor.includes(k), paper = d.kind === 'paper';
           if (d.tiers){
             const tier = owned ? decorTier(k) : -1;
+            const star = d.use ? '<img class="star" alt="interativo" src="' + sprURL('estrela', {w:'#ffd23f'}) + '">' : '';
+            const nm = i => d.tiers[i].name + star;
             let rows = '';
-            if (tier < 0) rows += row('buy', 'decor:' + k + ':0', fi(d.tiers[0].draw, d.tiers[0].w, d.tiers[0].h), d.tiers[0].name, d.tiers[0].price + '', '');
-            if (tier === 0) rows += row('none', k, fi(d.tiers[0].draw, d.tiers[0].w, d.tiers[0].h), d.tiers[0].name, inRoomTxt, 'owned');
-            if (tier < 1) rows += row('buy', 'decor:' + k + ':1', fi(d.tiers[1].draw, d.tiers[1].w, d.tiers[1].h), d.tiers[1].name, d.tiers[1].price + '', '');
-            else rows += row('none', k, fi(d.tiers[1].draw, d.tiers[1].w, d.tiers[1].h), d.tiers[1].name, inRoomTxt, 'owned');
+            if (tier < 0) rows += row('buy', 'decor:' + k + ':0', fi(d.tiers[0].draw, d.tiers[0].w, d.tiers[0].h), nm(0), d.tiers[0].price + '', '');
+            if (tier === 0) rows += row('none', k, fi(d.tiers[0].draw, d.tiers[0].w, d.tiers[0].h), nm(0), inRoomTxt, 'owned');
+            if (tier < 1) rows += row('buy', 'decor:' + k + ':1', fi(d.tiers[1].draw, d.tiers[1].w, d.tiers[1].h), nm(1), d.tiers[1].price + '', '');
+            else rows += row('none', k, fi(d.tiers[1].draw, d.tiers[1].w, d.tiers[1].h), nm(1), inRoomTxt, 'owned');
             return rows;
           }
           const icon = paper ? sprImg('brilho') : d.kind === 'rug' ? sprImg('coracao') : d.draw ? fi(d.draw, d.w, d.h) : sprImg(d.spr || k);
@@ -254,10 +270,15 @@ const UI = (() => {
         }).join('');
       }
     } else if (tab === 'skin'){
-      list = Object.keys(SKINS).map(k => {
-        const owned = S.skins.includes(k), on = S.skin === k;
-        return row(owned ? 'skin' : 'buy', owned ? k : 'skin:' + k, swatch(SKINS[k].fur), SKINS[k].name, owned ? (on ? 'usando' : 'usar') : SKINS[k].price + '', owned ? 'owned' : '');
-      }).join('');
+      const groups = [['natural', 'Cores naturais'], ['bicolor', 'Bicolores'], ['color', 'Coloridos']];
+      for (const [g, title] of groups){
+        list += '<h3>' + title + '</h3>';
+        list += Object.keys(SKINS).filter(k => (SKINS[k].group || 'natural') === g).map(k => {
+          const owned = S.skins.includes(k), on = S.skin === k, sk = SKINS[k];
+          const sw = sk.hood ? '<span class="ico" style="background:linear-gradient(135deg,' + sk.hood + ' 50%,' + sk.fur + ' 50%);border:2px solid #3a2a4a;border-radius:50%"></span>' : swatch(sk.fur);
+          return row(owned ? 'skin' : 'buy', owned ? k : 'skin:' + k, sw, sk.name, owned ? (on ? 'usando' : 'usar') : sk.price + '', owned ? 'owned' : '');
+        }).join('');
+      }
     }
     const h = '<div class="panel">' +
       '<div style="display:flex;justify-content:space-between;align-items:center"><h2>Loja</h2>' +
@@ -291,6 +312,7 @@ const UI = (() => {
       '<button class="opt" data-act="export"><span class="name">Código do save</span><span class="meta">copiar</span></button>' +
       '<button class="opt" data-act="import"><span class="name">Carregar código</span><span class="meta">colar</span></button>' +
       '<button class="opt" data-act="skip"><span class="name">Modo teste: +12h</span><span class="meta">tempo</span></button>' +
+      '<button class="opt" data-act="xp"><span class="name">Modo teste: +1 nível</span><span class="meta">xp</span></button>' +
       '<button class="opt danger" data-act="reset"><span class="name">Recomeçar do zero</span></button>' +
       '<button class="opt" data-act="about"><span class="name">Sobre</span></button>' +
       '</div><button class="opt center" data-act="back">Voltar</button></div>';
@@ -299,6 +321,7 @@ const UI = (() => {
       export:() => exportPanel(hooks),
       import:() => importPanel(hooks),
       skip:() => { SFX.play('ok'); hooks.skip(); settings(hooks); toast('Passaram 12 horas.', 1600); },
+      xp:() => { SFX.play('ok'); addXp(xpForLevel(S.level + 1) - S.xp); save(); close(); },
       reset:() => confirm('Recomeçar do zero? O ratinho atual vai embora para sempre.', () => hooks.reset(), () => settings(hooks)),
       about:() => aboutPanel(hooks),
       back:() => { SFX.play('back'); close(); }
@@ -343,8 +366,8 @@ const UI = (() => {
     const h = '<div class="panel"><h2>Sobre</h2><div class="list" style="gap:4%">' +
       '<p>Tem um rato aqui é um bichinho virtual: cuide da fome, do sono, da higiene e da diversão do seu rato.</p>' +
       '<p>A toca tem sala, cozinha e banheiro. Deslize para o lado ou use as setas para andar entre os cômodos. Os móveis começam improvisados e podem ser trocados por miniaturas de verdade na loja.</p>' +
-      '<p>Ele vira jovem com 20 horas de vida e adulto com 68. A forma adulta depende de como você cuidou dele quando jovem.</p>' +
-      '<p>O tempo passa devagar com o app fechado. Se ficar muito tempo sem cuidar, ele fica doente e triste, mas nunca vai embora.</p>' +
+      '<p>Cuidar dele dá experiência: comer, banho, carinho, brinquedos e mini-jogos. Ele vira adolescente no nível ' + STAGES.young.level + ' e adulto no nível ' + STAGES.adult.level + '. A forma adulta depende de como você cuidou dele quando adolescente.</p>' +
+      '<p>As barras caem mesmo com o app fechado. Entrando umas 3 vezes por dia dá para manter tudo em dia. Se ficar muito tempo sem cuidar, ele fica doente e triste, mas nunca vai embora.</p>' +
       '</div><button class="opt center" data-act="back">Voltar</button></div>';
     open('about', h, {back:() => settings(hooks)}, () => settings(hooks));
   }
