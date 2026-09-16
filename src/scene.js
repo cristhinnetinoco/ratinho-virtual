@@ -42,7 +42,8 @@ function decorRect(key){
   const d = DECOR[key], def = decorDef(key);
   const w = def.w || 10, h = def.h || 10;
   if (d.wall) return {x:Math.round(d.x * W), y:LAY.top + d.y, w, h};
-  if (d.onTub){ const t = furnRect('banheira'); return {x:t.x + 5, y:t.y - 7 + 4, w:8, h:7}; }
+  if (d.kind === 'rug') return {x:Math.round((W - w) / 2), y:LAY.floorY + Math.round(LAY.floorH * (d.ry || 0.42)), w, h};
+  if (d.onTub){ const t = furnRect('banheira'); return {x:t.x + 5, y:t.y - h + 4, w, h}; }
   if (d.onFurn){ const f = furnRect(d.onFurn); return {x:f.x + (d.dx || 0), y:f.y - h, w, h}; }
   return {x:Math.round(d.x * W) - Math.round(w / 2), y:floorMid() - h + (d.dy || 0), w, h};
 }
@@ -188,11 +189,6 @@ function drawRoomBg(ctx, r, night){
     fillEllipse(ctx, hx, hy + 1, 9, 13, night ? '#1a1430' : '#2a2140');
     rect(ctx, hx - 12, hy + 1, 24, 20, base);
     rect(ctx, hx - 12, fy - 5, 24, 5, night ? '#3a3060' : '#d9b98a');
-    if (S.decor.includes('tapete')){
-      const rw = Math.round(W * 0.46), rh = Math.round(LAY.floorH * 0.3), rx = Math.round((W - rw) / 2), ry = fy + Math.round(LAY.floorH * 0.42);
-      rect(ctx, rx, ry, rw, rh, PAL.k); rect(ctx, rx + 1, ry + 1, rw - 2, rh - 2, '#e05a4e');
-      rect(ctx, rx + 3, ry + 3, rw - 6, rh - 6, '#f5943c'); rect(ctx, rx + 5, ry + 5, rw - 10, rh - 10, '#ffd23f');
-    }
   } else if (id === 'cozinha'){
     const wall = night ? '#3f5560' : '#e8f0d6', tileA = night ? '#4a6572' : '#fffaf0', tileB = night ? '#3c5361' : '#cfe3c9';
     rect(ctx, 0, top, W, fy - top, wall);
@@ -215,10 +211,6 @@ function drawRoomBg(ctx, r, night){
     rect(ctx, 0, fy - 4, W, 4, night ? '#2a3a4c' : '#9ec4d4');
     for (let y = fy; y < bottom; y += 10) for (let x = 0; x < W; x += 10)
       rect(ctx, x, y, 10, Math.min(10, bottom - y), ((x / 10 + (y - fy) / 10) % 2) ? (night ? '#4a5e70' : '#eaf6fa') : (night ? '#3d4f5f' : '#bfd9e6'));
-    if (S.decor.includes('tapete_banho')){
-      const rw = Math.round(W * 0.36), rx = Math.round((W - rw) / 2), ry = fy + Math.round(LAY.floorH * 0.5);
-      rect(ctx, rx, ry, rw, 12, PAL.k); rect(ctx, rx + 1, ry + 1, rw - 2, 10, '#5aa9e6'); rect(ctx, rx + 3, ry + 3, rw - 6, 6, '#9ad4f5');
-    }
   } else {
     const wall = night ? '#3d3160' : '#e8dcf5', star = night ? '#6b5fa8' : '#fffaf0';
     rect(ctx, 0, top, W, fy - top, wall);
@@ -231,7 +223,12 @@ function drawRoomBg(ctx, r, night){
 function drawRoomItems(ctx, r, night, t){
   const room = ROOMS[r], fb = furnBottom();
   const opts = key => { const a = SCENE.active[key]; return {night, t, active:!!a, on:!!a, cat:a && a.cat, hidden:key === 'casinha' && S.hidden, coins:key === 'cofre' && coinsInBank() > 0}; };
-  /* parede */
+  /* tapetes (embaixo de tudo) e parede */
+  for (const k of S.decor){
+    const d = DECOR[k]; if (!d || d.room !== room.id || d.kind !== 'rug') continue;
+    const rr = decorRect(k), def = decorDef(k);
+    drawFurn(ctx, def.draw, rr.x, rr.y, rr.w, rr.h, opts(k));
+  }
   for (const k of S.decor){
     const d = DECOR[k]; if (!d || d.room !== room.id || !d.wall) continue;
     const rr = decorRect(k), def = decorDef(k);
@@ -248,7 +245,6 @@ function drawRoomItems(ctx, r, night, t){
     const d = DECOR[k]; if (!d || d.room !== room.id || d.wall || d.kind) continue;
     if (k === 'roda' && SCENE.riding) continue;
     const rr = decorRect(k), def = decorDef(k);
-    if (d.onTub){ drawSpr(ctx, 'patinho', rr.x, rr.y); continue; }
     drawFurn(ctx, def.draw, rr.x, rr.y, rr.w, rr.h, opts(k));
   }
 }

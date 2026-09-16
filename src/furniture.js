@@ -304,6 +304,65 @@ const FDRAW = {
     rect(ctx, x + 1, y + h - 3, w - 2, 1, PAL.P); rect(ctx, x + Math.floor(w / 2), y + 4, 1, h - 6, PAL.P);
   },
   planta(ctx, x, y, w, h){ const c = spriteCanvas('planta'); if (c) ctx.drawImage(c, x, y + h - c.height); },
+  planta_vaso(ctx, x, y, w, h){
+    const cx = x + Math.floor(w / 2);
+    box(ctx, x + 2, y + h - 8, w - 4, 8, PAL.o, K); rect(ctx, x + 1, y + h - 9, w - 2, 2, PAL.R); rect(ctx, x + 3, y + h - 6, 1, 4, '#f9b36c');
+    rect(ctx, cx, y + 4, 1, h - 12, PAL.E);
+    fillEllipse(ctx, cx - 3, y + 8, 3, 2, PAL.e); fillEllipse(ctx, cx + 3, y + 10, 3, 2, PAL.e);
+    fillEllipse(ctx, cx, y + 3, 3, 3, PAL.p); px(ctx, cx, y + 3, PAL.y);
+  },
+  poster_papel(ctx, x, y, w, h){
+    box(ctx, x, y + 1, w, h - 1, '#fff6e0', K);
+    const c = spriteCanvas('queijo'); if (c){ ctx.drawImage(c, x + Math.floor((w - 12) / 2), y + 6, 12, 12); }
+    for (let i = x + 4; i < x + w - 4; i += 4) rect(ctx, i, y + h - 7, 2, 1, PAL.k);
+    for (let i = x + 3; i < x + w - 3; i += 5) rect(ctx, i, y + h - 4, 3, 1, PAL.k);
+    rect(ctx, x - 1, y, 5, 3, '#c9c3d6'); rect(ctx, x + w - 4, y, 5, 3, '#c9c3d6');
+  },
+  quadro_papelao(ctx, x, y, w, h){
+    box(ctx, x, y, w, h, '#e0c9a3', K); rect(ctx, x + 1, y + 1, w - 2, 1, '#f0dcbb');
+    rect(ctx, x + 3, y + 3, w - 6, h - 6, PAL.b);
+    fillEllipse(ctx, x + w - 8, y + 7, 3, 3, PAL.y);
+    fillEllipse(ctx, x + 8, y + h - 5, 8, 4, PAL.e); rect(ctx, x + 3, y + h - 5, w - 6, 2, PAL.E);
+  },
+  relogio_tampa(ctx, x, y, w, h){
+    const r = Math.floor(Math.min(w, h) / 2) - 1, cx = x + r + 1, cy = y + r + 1;
+    oEllipse(ctx, cx, cy, r, r, PAL.y, K); ringRows(ctx, cx, cy, r, r - 1, PAL.Y);
+    px(ctx, cx, cy - r + 2, K); px(ctx, cx, cy + r - 2, K); px(ctx, cx - r + 2, cy, K); px(ctx, cx + r - 2, cy, K);
+    const d = new Date(), hm = (d.getHours() % 12) / 12 * Math.PI * 2 + d.getMinutes() / 60 * Math.PI / 6, mm = d.getMinutes() / 60 * Math.PI * 2;
+    const hand = (a, len, col) => { for (let s = 0; s <= len; s++) px(ctx, cx + Math.sin(a) * s, cy - Math.cos(a) * s, col); };
+    hand(hm, r - 4, K); hand(mm, r - 2, K); px(ctx, cx, cy, K);
+  },
+  prateleira_palito(ctx, x, y, w, h){
+    const jars = [[PAL.y, PAL.Y], [PAL.p, PAL.P]];
+    const jw = 6, gap = Math.floor((w - 2 - jars.length * jw) / (jars.length + 1));
+    jars.forEach((c, i) => { const jx = x + 1 + gap + i * (jw + gap); rect(ctx, jx + 1, y + 2, jw - 2, 1, K); box(ctx, jx, y + 3, jw, h - 8, c[0], K); rect(ctx, jx + 1, y + 4, 1, h - 11, '#fffaf0'); });
+    for (let i = 0; i < 3; i++) rect(ctx, x, y + h - 5 + i, w, 1, i === 1 ? '#d19a63' : PAL.n);
+    rect(ctx, x, y + h - 5, w, 1, K); rect(ctx, x, y + h - 2, w, 1, K); rect(ctx, x + 2, y + h - 2, 1, 2, K); rect(ctx, x + w - 3, y + h - 2, 1, 2, K);
+  },
+  toalha_pano(ctx, x, y, w, h){
+    px(ctx, x + Math.floor(w / 2), y, K); px(ctx, x + Math.floor(w / 2), y + 1, PAL.G);
+    box(ctx, x, y + 2, w, h - 4, PAL.w, K);
+    for (let yy = y + 5; yy < y + h - 4; yy += 3) rect(ctx, x + 1, yy, w - 2, 1, PAL.b);
+    rect(ctx, x + 1, y + h - 3, w - 2, 1, '#e3dff0');
+  },
+  rolha(ctx, x, y, w, h){ box(ctx, x, y + 1, w, h - 1, PAL.n, K); rect(ctx, x + 1, y + 2, w - 2, 1, '#d19a63'); px(ctx, x + 2, y + 4, PAL.N); px(ctx, x + w - 3, y + 3, PAL.N); },
+  patinho(ctx, x, y, w, h){ const c = spriteCanvas('patinho'); if (c) ctx.drawImage(c, x, y + h - c.height); },
+  tapete_retalho(ctx, x, y, w, h){
+    rect(ctx, x, y, w, h, K); rect(ctx, x + 1, y + 1, w - 2, h - 2, '#e05a4e');
+    rect(ctx, x + 3, y + 3, w - 6, h - 6, '#f5943c'); rect(ctx, x + 5, y + 5, w - 10, h - 10, '#ffd23f');
+  },
+  tapete_felpudo(ctx, x, y, w, h){
+    const cx = x + Math.floor(w / 2), cy = y + Math.floor(h / 2);
+    oEllipse(ctx, cx, cy, Math.floor(w / 2) - 1, Math.floor(h / 2) - 1, PAL.p, K);
+    for (let i = 0; i < 12; i++){ const a = i / 12 * Math.PI * 2; px(ctx, cx + Math.cos(a) * (w / 2 - 2), cy + Math.sin(a) * (h / 2 - 2), PAL.P); }
+    fillEllipse(ctx, cx, cy, Math.floor(w / 4), Math.floor(h / 4), '#fbd4e2');
+  },
+  tapete_banho_simples(ctx, x, y, w, h){ rect(ctx, x, y, w, h, K); rect(ctx, x + 1, y + 1, w - 2, h - 2, '#5aa9e6'); rect(ctx, x + 3, y + 3, w - 6, h - 6, '#9ad4f5'); },
+  tapete_banho_felpudo(ctx, x, y, w, h){
+    rect(ctx, x, y, w, h, K); rect(ctx, x + 1, y + 1, w - 2, h - 2, '#bfe6ff');
+    for (let yy = y + 2; yy < y + h - 1; yy += 2) for (let xx = x + 2 + ((yy - y) % 4 ? 1 : 0); xx < x + w - 1; xx += 2) px(ctx, xx, yy, '#9ad4f5');
+    for (let xx = x + 1; xx < x + w - 1; xx += 2){ px(ctx, xx, y - 1, PAL.w); px(ctx, xx, y + h, PAL.w); }
+  },
   /* ---- interativos ---- */
   roda(ctx, x, y, w, h){
     const r = Math.floor(Math.min(w, h - 6) / 2) - 1, cx = x + Math.floor(w / 2), cy = y + r + 1;
@@ -521,10 +580,18 @@ const FURN = {
    Com "tiers": duas versoes a venda (barata e de pet shop). Com "use": interativo. */
 const DECOR = {
   /* sala */
-  tapete:         {room:'sala', name:'Tapete de retalho',   price:25, kind:'rug'},
-  poster:         {room:'sala', name:'Pôster de queijo',    price:35, wall:true, x:0.08, y:18, draw:'poster', w:24, h:30},
-  quadro:         {room:'sala', name:'Quadro pintado',      price:45, wall:true, x:0.62, y:14, draw:'quadro', w:26, h:20},
-  planta:         {room:'sala', name:'Planta no dedal',     price:30, x:0.90, floor:true, draw:'planta', w:10, h:12},
+  tapete:  {room:'sala', label:'Tapete', kind:'rug', ry:0.42,
+            tiers:[{name:'Tapete de retalho', draw:'tapete_retalho', w:58, h:32, price:15},
+                   {name:'Tapete felpudo',    draw:'tapete_felpudo', w:60, h:32, price:50}]},
+  poster:  {room:'sala', label:'Pôster', wall:true, x:0.08, y:18,
+            tiers:[{name:'Pôster desenhado à mão', draw:'poster_papel', w:22, h:28, price:15},
+                   {name:'Pôster de queijo emoldurado', draw:'poster', w:24, h:30, price:45}]},
+  quadro:  {room:'sala', label:'Quadro', wall:true, x:0.62, y:14,
+            tiers:[{name:'Quadro com moldura de papelão', draw:'quadro_papelao', w:26, h:20, price:20},
+                   {name:'Quadro pintado',               draw:'quadro',         w:26, h:20, price:60}]},
+  planta:  {room:'sala', label:'Planta', x:0.90, floor:true,
+            tiers:[{name:'Broto no dedal',   draw:'planta',      w:10, h:12, price:15},
+                   {name:'Vasinho com flor', draw:'planta_vaso', w:12, h:20, price:45}]},
   papel_listras:  {room:'sala', name:'Papel listrado',      price:60, kind:'paper'},
   papel_bolinhas: {room:'sala', name:'Papel de bolinhas',   price:60, kind:'paper'},
   papel_coracoes: {room:'sala', name:'Papel de corações',   price:80, kind:'paper'},
@@ -537,13 +604,19 @@ const DECOR = {
   roer:    {room:'sala', label:'Brinquedo de roer', x:0.50, floor:true, dy:6, use:'roer',
             tiers:[{name:'Rolha de cortiça',      draw:'roer_rolha', w:12, h:8, price:15},
                    {name:'Osso de roer colorido', draw:'roer_osso',  w:14, h:9, price:45}]},
-  janela:  {room:'sala', label:'Janela', wall:true, x:0.34, y:16, use:'janela',
+  janela:  {room:'quarto', label:'Janela', wall:true, x:0.60, y:12, use:'janela',
             tiers:[{name:'Buraco com vista',        draw:'janela_buraco',  w:22, h:18, price:20},
                    {name:'Janela com cortina',      draw:'janela_moldura', w:26, h:22, price:70}]},
   /* cozinha */
-  relogio:        {room:'cozinha', name:'Relógio de parede',    price:30, wall:true, x:0.84, y:10, draw:'relogio', w:16, h:16},
-  prateleira:     {room:'cozinha', name:'Prateleira de potes',  price:50, wall:true, x:0.06, y:26, draw:'prateleira', w:32, h:14},
-  planta2:        {room:'cozinha', name:'Plantinha na cozinha', price:30, x:0.90, floor:true, draw:'planta', w:10, h:12},
+  relogio:   {room:'cozinha', label:'Relógio', wall:true, x:0.84, y:10,
+              tiers:[{name:'Relógio de tampa de pote', draw:'relogio_tampa', w:16, h:16, price:15},
+                     {name:'Relógio de parede',        draw:'relogio',       w:16, h:16, price:45}]},
+  prateleira:{room:'cozinha', label:'Prateleira', wall:true, x:0.06, y:26,
+              tiers:[{name:'Prateleira de palitos de picolé', draw:'prateleira_palito', w:28, h:14, price:20},
+                     {name:'Prateleira de potes',             draw:'prateleira',        w:32, h:14, price:60}]},
+  planta2:   {room:'cozinha', label:'Plantinha', x:0.90, floor:true,
+              tiers:[{name:'Broto no dedal',   draw:'planta',      w:10, h:12, price:15},
+                     {name:'Vasinho com flor', draw:'planta_vaso', w:12, h:20, price:45}]},
   bebedouro: {room:'cozinha', label:'Bebedouro', wall:true, x:0.23, y:52, use:'bebedouro',
               tiers:[{name:'Bebedouro de garrafa PET', draw:'bebedouro_pet',     w:12, h:30, price:25},
                      {name:'Bebedouro de pet shop',    draw:'bebedouro_petshop', w:12, h:30, price:70}]},
@@ -551,10 +624,18 @@ const DECOR = {
               tiers:[{name:'Vidro de maionese com biscoitos', draw:'pote_maionese', w:14, h:18, price:20},
                      {name:'Pote de biscoitos de cerâmica',   draw:'pote_biscoito', w:16, h:20, price:60}]},
   /* banheiro */
-  patinho:        {room:'banheiro', name:'Patinho de borracha', price:20, onTub:true},
-  toalha:         {room:'banheiro', name:'Toalha no gancho',    price:25, wall:true, x:0.70, y:44, draw:'toalha', w:12, h:20},
-  tapete_banho:   {room:'banheiro', name:'Tapetinho do banho',  price:25, kind:'rug'},
-  quadro2:        {room:'banheiro', name:'Quadro do mar',       price:45, wall:true, x:0.30, y:22, draw:'quadro', w:26, h:20},
+  patinho:     {room:'banheiro', label:'Brinquedo da banheira', onTub:true,
+                tiers:[{name:'Rolha boiando',        draw:'rolha',   w:8, h:6, price:10},
+                       {name:'Patinho de borracha',  draw:'patinho', w:8, h:7, price:30}]},
+  toalha:      {room:'banheiro', label:'Toalha', wall:true, x:0.70, y:44,
+                tiers:[{name:'Pano de prato no prego', draw:'toalha_pano', w:12, h:20, price:10},
+                       {name:'Toalha felpuda',         draw:'toalha',      w:12, h:20, price:35}]},
+  tapete_banho:{room:'banheiro', label:'Tapetinho', kind:'rug', ry:0.5,
+                tiers:[{name:'Tapetinho de pano',    draw:'tapete_banho_simples', w:44, h:12, price:10},
+                       {name:'Tapetinho felpudo',    draw:'tapete_banho_felpudo', w:44, h:12, price:35}]},
+  quadro2:     {room:'banheiro', label:'Quadro do mar', wall:true, x:0.30, y:22,
+                tiers:[{name:'Quadro do mar de papelão', draw:'quadro_papelao', w:26, h:20, price:20},
+                       {name:'Quadro do mar pintado',    draw:'quadro',         w:26, h:20, price:60}]},
   chuveiro:  {room:'banheiro', label:'Chuveirinho', wall:true, x:0.10, y:56, use:'chuveiro',
               tiers:[{name:'Regador pendurado',     draw:'chuveiro_regador',   w:18, h:26, price:25},
                      {name:'Chuveiro de brinquedo', draw:'chuveiro_brinquedo', w:18, h:20, price:75}]},

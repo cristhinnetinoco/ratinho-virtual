@@ -55,7 +55,8 @@ function load(){
     S.outfits = d.outfits || []; S.outfit = d.outfit || '';
     S.decor = (d.decor || []).filter(k => DECOR[k]);
     S.decorTier = d.decorTier || {};
-    if (!d.decorTier){ if (S.decor.includes('tv')) S.decorTier.tv = 1; if (S.decor.includes('roda')) S.decorTier.roda = 1; }
+    /* quem comprou antes de existir a versao barata fica com a melhor */
+    for (const k of S.decor){ if (DECOR[k] && DECOR[k].tiers && S.decorTier[k] == null) S.decorTier[k] = 1; }
     S.uses = d.uses || {}; S.bank = d.bank || 0; S.hidden = !!d.hidden;
     if (S.paper && !DECOR[S.paper]) S.paper = '';
     S.room = Math.min(ROOMS.length - 1, Math.max(0, d.room || 0));
