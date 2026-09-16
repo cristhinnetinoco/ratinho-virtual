@@ -895,8 +895,8 @@ const FORMS = {
 };
 const STAGES = {
   baby:  {name:'Filhote',     level:1},
-  young: {name:'Adolescente', level:4},
-  adult: {name:'Adulto',      level:10}
+  young: {name:'Adolescente', level:15},
+  adult: {name:'Adulto',      level:30}
 };
 const STAGE_ORDER = ['baby', 'young', 'adult'];
 const stageRank = s => STAGE_ORDER.indexOf(s);
@@ -2320,6 +2320,12 @@ function load(){
       S.level = levelFromXp(S.xp); S.xpAcc = 0;
     }
     S.pending = [];
+    // v11.2: crescer ficou mais lento (adolescente 15, adulto 30); a fase volta a bater com o nível
+    const stNow = stageForLevel(S.level);
+    if (S.started && stageRank(S.stage) > stageRank(stNow)){
+      S.stage = stNow;
+      S.pending.push('info:Crescer agora demora mais: adolescente no nível 15 e adulto no 30. ' + S.name + ' voltou a ser ' + STAGES[stNow].name.toLowerCase() + '!');
+    }
     return true;
   } catch (e) { return false; }
 }
@@ -2328,7 +2334,7 @@ function xpNeed(l){ return 30 + (l - 1) * 15; }
 function xpForLevel(l){ let s = 0; for (let i = 1; i < l; i++) s += xpNeed(i); return s; }
 function levelFromXp(xp){ let l = 1; while (l < 99 && xp >= xpForLevel(l + 1)) l++; return l; }
 function stageForLevel(l){ return l >= STAGES.adult.level ? 'adult' : l >= STAGES.young.level ? 'young' : 'baby'; }
-function levelProgress(){ const a = xpForLevel(S.level), b = xpForLevel(S.level + 1); return {cur:S.xp - a, need:b - a, pct:Math.max(0, Math.min(1, (S.xp - a) / (b - a)))}; }
+function levelProgress(){ if (S.level >= 99) return {cur:0, need:0, pct:1}; const a = xpForLevel(S.level), b = xpForLevel(S.level + 1); return {cur:S.xp - a, need:b - a, pct:Math.max(0, Math.min(1, (S.xp - a) / (b - a)))}; }
 function addXp(n){
   if (!S.started || n <= 0) return;
   S.xp += n;
@@ -3335,7 +3341,7 @@ const UI = (() => {
       '<div class="bars">' + bar('queijo', 'Fome', S.hunger) + bar('zzz', 'Energia', S.energy) +
       bar('sabonete', 'Higiene', S.hygiene) + bar('coracao', 'Diversão', S.fun) + '</div>' +
       '<div class="kv">' +
-      '<b>Nível</b><span>' + S.level + ' · ' + lp.cur + '/' + lp.need + ' xp</span>' +
+      '<b>Nível</b><span>' + S.level + (S.level >= 99 ? ' · máximo!' : ' · ' + lp.cur + '/' + lp.need + ' xp') + '</span>' +
       '<b>Fase</b><span>' + st + (fm ? ' · ' + esc(fm) : '') + '</span>' +
       (nextStage ? '<b>Próxima</b><span>' + nextStage + '</span>' : '') +
       '<b>Idade</b><span>' + days + 'd ' + hrs + 'h</span>' +
@@ -4628,6 +4634,7 @@ const GAMES = (() => {
       if (ev.indexOf('evolve:') === 0){
         SFX.play('evolve'); setAnim('evolve', 2600); UI.evolved(ev.split(':')[1]); save(); return;
       } else if (ev.indexOf('level:') === 0){ SFX.play('win'); UI.toast('Nível ' + ev.split(':')[1] + '! +5 moedas', 1800); addHearts(3); }
+      else if (ev.indexOf('info:') === 0){ UI.toast(ev.slice(5), 3500); }
       else if (ev.indexOf('trick:') === 0){ const k = ev.split(':')[1]; SFX.play('win'); UI.toast('Aprendeu um truque: ' + TRICKS[k].name + '! Toque duas vezes nele.', 2600); setAnim('trick', 1400, {sub:k}); }
       else if (ev.indexOf('ach:') === 0){ const a = ACHIEVEMENTS.find(x => x.id === ev.split(':')[1]); if (a){ SFX.play('win'); UI.toast('Conquista: ' + a.name + '! +20 moedas', 2400); addHearts(3); } }
       else if (ev.indexOf('streak:') === 0){ const p = ev.split(':'); UI.streakPanel(parseInt(p[1], 10), p.slice(2).join(':')); return; }

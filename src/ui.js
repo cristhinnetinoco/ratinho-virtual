@@ -194,7 +194,7 @@ const UI = (() => {
       '<div class="bars">' + bar('queijo', 'Fome', S.hunger) + bar('zzz', 'Energia', S.energy) +
       bar('sabonete', 'Higiene', S.hygiene) + bar('coracao', 'Diversão', S.fun) + '</div>' +
       '<div class="kv">' +
-      '<b>Nível</b><span>' + S.level + ' · ' + lp.cur + '/' + lp.need + ' xp</span>' +
+      '<b>Nível</b><span>' + S.level + (S.level >= 99 ? ' · máximo!' : ' · ' + lp.cur + '/' + lp.need + ' xp') + '</span>' +
       '<b>Fase</b><span>' + st + (fm ? ' · ' + esc(fm) : '') + '</span>' +
       (nextStage ? '<b>Próxima</b><span>' + nextStage + '</span>' : '') +
       '<b>Idade</b><span>' + days + 'd ' + hrs + 'h</span>' +

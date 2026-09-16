@@ -180,6 +180,12 @@ function load(){
       S.level = levelFromXp(S.xp); S.xpAcc = 0;
     }
     S.pending = [];
+    // v11.2: crescer ficou mais lento (adolescente 15, adulto 30); a fase volta a bater com o nível
+    const stNow = stageForLevel(S.level);
+    if (S.started && stageRank(S.stage) > stageRank(stNow)){
+      S.stage = stNow;
+      S.pending.push('info:Crescer agora demora mais: adolescente no nível 15 e adulto no 30. ' + S.name + ' voltou a ser ' + STAGES[stNow].name.toLowerCase() + '!');
+    }
     return true;
   } catch (e) { return false; }
 }
@@ -188,7 +194,7 @@ function xpNeed(l){ return 30 + (l - 1) * 15; }
 function xpForLevel(l){ let s = 0; for (let i = 1; i < l; i++) s += xpNeed(i); return s; }
 function levelFromXp(xp){ let l = 1; while (l < 99 && xp >= xpForLevel(l + 1)) l++; return l; }
 function stageForLevel(l){ return l >= STAGES.adult.level ? 'adult' : l >= STAGES.young.level ? 'young' : 'baby'; }
-function levelProgress(){ const a = xpForLevel(S.level), b = xpForLevel(S.level + 1); return {cur:S.xp - a, need:b - a, pct:Math.max(0, Math.min(1, (S.xp - a) / (b - a)))}; }
+function levelProgress(){ if (S.level >= 99) return {cur:0, need:0, pct:1}; const a = xpForLevel(S.level), b = xpForLevel(S.level + 1); return {cur:S.xp - a, need:b - a, pct:Math.max(0, Math.min(1, (S.xp - a) / (b - a)))}; }
 function addXp(n){
   if (!S.started || n <= 0) return;
   S.xp += n;

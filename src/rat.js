@@ -33,8 +33,8 @@ const FORMS = {
 };
 const STAGES = {
   baby:  {name:'Filhote',     level:1},
-  young: {name:'Adolescente', level:4},
-  adult: {name:'Adulto',      level:10}
+  young: {name:'Adolescente', level:15},
+  adult: {name:'Adulto',      level:30}
 };
 const STAGE_ORDER = ['baby', 'young', 'adult'];
 const stageRank = s => STAGE_ORDER.indexOf(s);

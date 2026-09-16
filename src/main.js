@@ -98,6 +98,7 @@
       if (ev.indexOf('evolve:') === 0){
         SFX.play('evolve'); setAnim('evolve', 2600); UI.evolved(ev.split(':')[1]); save(); return;
       } else if (ev.indexOf('level:') === 0){ SFX.play('win'); UI.toast('Nível ' + ev.split(':')[1] + '! +5 moedas', 1800); addHearts(3); }
+      else if (ev.indexOf('info:') === 0){ UI.toast(ev.slice(5), 3500); }
       else if (ev.indexOf('trick:') === 0){ const k = ev.split(':')[1]; SFX.play('win'); UI.toast('Aprendeu um truque: ' + TRICKS[k].name + '! Toque duas vezes nele.', 2600); setAnim('trick', 1400, {sub:k}); }
       else if (ev.indexOf('ach:') === 0){ const a = ACHIEVEMENTS.find(x => x.id === ev.split(':')[1]); if (a){ SFX.play('win'); UI.toast('Conquista: ' + a.name + '! +20 moedas', 2400); addHearts(3); } }
       else if (ev.indexOf('streak:') === 0){ const p = ev.split(':'); UI.streakPanel(parseInt(p[1], 10), p.slice(2).join(':')); return; }
