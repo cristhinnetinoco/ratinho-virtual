@@ -3775,32 +3775,39 @@ const GAMES = (() => {
   /* ---------- 2. Corrida na Cozinha ---------- */
   function Corrida(){
     const GY = H - 52, RX = Math.round(W * 0.3);
-    const rat = {y:GY, vy:0, ground:true, holdT:0};
-    let speed = 2.0, dist = 0, over = false, nextObs = 70, obs = [], cheese = [], score = 0, wob = 0;
+    const rat = {y:GY, vy:0, ground:true, holdT:0, buf:0};
+    const JUMP = -4.6, GRAV = 0.27;
+    // velocidade em px/frame: começa devagar e sobe +1 a cada 30 s, até 3.4
+    let speed = 1.5, t = 0, dist = 0, over = false, nextObs = 90, obs = [], cheese = [], score = 0, wob = 0;
     return {
       update(dt){
         if (over) return;
-        const f = F(dt);
-        if ((inp.tap || inp.btn) && rat.ground){ rat.vy = -5.0; rat.ground = false; rat.holdT = 0; SFX.play('jump'); }
+        const f = F(dt); t += dt;
+        if (inp.tap || inp.btn) rat.buf = 120;           // toque um pouco antes de pousar ainda vale
         inp.tap = false; inp.btn = null;
-        if (!rat.ground && inp.down && rat.vy < 0 && rat.holdT < 200){ rat.vy -= 0.14 * f; rat.holdT += dt; }
-        rat.vy += 0.3 * f; rat.y += rat.vy * f;
+        if (rat.buf > 0){
+          rat.buf -= dt;
+          if (rat.ground){ rat.vy = JUMP; rat.ground = false; rat.holdT = 0; rat.buf = 0; SFX.play('jump'); }
+        }
+        if (!rat.ground && inp.down && rat.vy < 0 && rat.holdT < 160){ rat.vy -= 0.12 * f; rat.holdT += dt; }
+        rat.vy += GRAV * f; rat.y += rat.vy * f;
         if (rat.y >= GY){ rat.y = GY; rat.vy = 0; rat.ground = true; }
-        speed += 0.00025 * dt;
+        speed = Math.min(3.4, 1.5 + t / 30000);
         dist += speed * f; wob += dt;
-        nextObs -= speed * f;
+        nextObs -= f;                                     // intervalo em tempo, não em pixels
         if (nextObs <= 0){
-          const r = Math.random();
-          obs.push({x:W + 10, type:r < 0.7 ? 'trap' : 'cat'});
-          if (Math.random() < 0.6) cheese.push({x:W + 40 + Math.random() * 30, y:GY - 24 - Math.random() * 14, got:false});
-          nextObs = 70 + Math.random() * 60;
+          const type = (t > 15000 && Math.random() < 0.3) ? 'cat' : 'trap', ow = type === 'trap' ? 12 : 16;  // gato só depois de 15 s
+          obs.push({x:W + 10, type});
+          if (type === 'trap' && t > 20000 && Math.random() < 0.3) obs.push({x:W + 10 + 14, type:'trap'});
+          if (Math.random() < 0.6) cheese.push({x:W + 10 + ow / 2 + (Math.random() < 0.5 ? 0 : 30), y:GY - 22 - Math.random() * 10, got:false});
+          nextObs = 50 + Math.random() * 40;              // 0,8 a 1,5 s: sempre dá para pousar e pular de novo
         }
         for (const o of obs) o.x -= speed * f;
         for (const c of cheese) c.x -= speed * f;
         obs = obs.filter(o => o.x > -20); cheese = cheese.filter(c => c.x > -10);
         for (const o of obs){
-          const ow = o.type === 'trap' ? 12 : 16, oh = o.type === 'trap' ? 6 : 11;
-          if (RX + 5 > o.x + 1 && RX - 5 < o.x + ow - 1 && rat.y > GY - oh + 1){ over = true; SFX.play('hit'); }
+          const ow = o.type === 'trap' ? 12 : 16, oh = o.type === 'trap' ? 6 : 11, m = o.type === 'trap' ? 2 : 3;
+          if (RX + 4 > o.x + m && RX - 4 < o.x + ow - m && rat.y > GY - oh + 2){ over = true; SFX.play('hit'); }
         }
         for (const c of cheese) if (!c.got && Math.abs(c.x - RX) < 9 && Math.abs(c.y - (rat.y - 10)) < 12){ c.got = true; score += 5; SFX.play('coin'); }
         UI.hud('PTS ' + (Math.floor(dist / 10) + score), 'x' + speed.toFixed(1));

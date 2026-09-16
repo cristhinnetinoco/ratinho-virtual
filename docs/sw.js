@@ -1,5 +1,5 @@
 /* Service worker: deixa o jogo abrir sem internet depois da primeira visita. */
-const CACHE = 'ratinho-20260915-214159';
+const CACHE = 'ratinho-20260915-215243';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {
