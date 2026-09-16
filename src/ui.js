@@ -7,6 +7,7 @@ const UI = (() => {
   let acts = {};
   let onBack = null;
   let navCb = null;
+  let sellMode = false;
   const NAMES = ['Queijinho', 'Biscoito', 'Pipoca', 'Nino', 'Mimi', 'Feijão', 'Tico', 'Amora', 'Bolinha', 'Cacau'];
   const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;'}[c]));
 
@@ -200,12 +201,43 @@ const UI = (() => {
       '<b>Peso</b><span>' + Math.round(S.weight) + 'g</span>' +
       '<b>Saúde</b><span>' + (S.sick ? 'Doente!' : 'Boa') + '</span>' +
       '<b>Moedas</b><span>' + S.coins + '</span>' +
+      '<b>Dias seguidos</b><span>' + (S.streak || 1) + '</span>' +
+      '<b>Favorita</b><span>' + (S.favKnown ? esc(FOODS[S.fav].name) : '? (descubra)') + '</span>' +
+      '<b>Não gosta</b><span>' + (S.hateKnown ? esc(FOODS[S.hate].name) : '?') + '</span>' +
+      '<b>Truques</b><span>' + (knownTricks().length ? knownTricks().map(k => TRICKS[k].name).join(', ') : 'nenhum ainda') + '</span>' +
       '<b>Refeições</b><span>' + S.stats.fed + '</span>' +
       '<b>Brincadeiras</b><span>' + S.stats.played + '</span>' +
       '<b>Banhos</b><span>' + S.stats.baths + '</span>' +
       '</div>' +
+      '<div class="list" style="flex:0 1 auto">' +
+      '<h3>Medalhas ' + Object.keys(S.ach || {}).length + '/' + ACHIEVEMENTS.length + '</h3><div class="medals">' +
+      ACHIEVEMENTS.map(a => '<span class="medal' + (S.ach && S.ach[a.id] ? ' on' : '') + '" title="' + esc(a.desc) + '">' + esc(a.name) + '</span>').join('') + '</div>' +
+      '<h3>Truques para aprender</h3><div class="medals">' +
+      Object.keys(TRICKS).map(k => '<span class="medal' + (S.tricks && S.tricks[k] ? ' on' : '') + '">' + esc(TRICKS[k].name) + ' · ' + esc(TRICKS[k].how) + '</span>').join('') + '</div></div>' +
       '<button class="opt center" data-act="back" style="margin-top:auto">Voltar</button></div>';
     open('status', h, {back:() => { SFX.play('back'); close(); }});
+  }
+  function tutorial(onDone){
+    const steps = [
+      ['Bem-vindo à toca!', 'Os ícones de baixo são: comer, luz (dormir), brincar, remédio, banho, status, loja e ajustes.'],
+      ['Quatro cômodos', 'Deslize o dedo para o lado, ou toque nas setas, para ir da sala para a cozinha, o banheiro e o quarto.'],
+      ['Carinho e brinquedos', 'Toque na cabeça dele para carinho, na barriga para cócegas, e arraste o dedo nele para um cafuné. Os itens com estrelinha na loja são brinquedos: toque neles na toca.'],
+      ['Ele cresce', 'Cuidar dele dá experiência. No nível ' + STAGES.young.level + ' vira adolescente e no nível ' + STAGES.adult.level + ' vira adulto. As barras caem mesmo com o app fechado, então volte umas 3 vezes por dia.']
+    ];
+    let i = 0;
+    const render = () => {
+      const s = steps[i];
+      open('tutorial', '<div class="panel short" style="height:44%"><h2>' + esc(s[0]) + '</h2><p>' + esc(s[1]) + '</p>' +
+        '<button class="opt center" data-act="next" style="margin-top:auto">' + (i < steps.length - 1 ? 'Próximo (' + (i + 1) + '/' + steps.length + ')' : 'Entendi!') + '</button></div>',
+        {next:() => { SFX.play('ok'); i++; if (i >= steps.length){ close(); onDone(); } else render(); }});
+    };
+    render();
+  }
+  function streakPanel(day, text){
+    const h = '<div class="panel short" style="height:40%"><h2>Dia ' + day + ' seguido!</h2>' +
+      '<p>Você voltou hoje. Ganhou: <b>' + esc(text) + '</b>.</p><p class="sub">' + (day < 7 ? 'Volte amanhã para o dia ' + (day + 1) + '. No 7º dia tem um presente raro.' : 'Sequência completa! Continua ganhando todo dia.') + '</p>' +
+      '<button class="opt center" data-act="ok" style="margin-top:auto">Valeu!</button></div>';
+    open('streak', h, {ok:() => { SFX.play('coin'); close(); }}, () => close());
   }
 
   function shop(tab){
@@ -227,6 +259,7 @@ const UI = (() => {
         list += '<h3>' + title + (locked(stg) ? ' · libera no nível ' + STAGES[stg].level : '') + '</h3>';
         list += Object.keys(HATS).filter(k => (HATS[k].stage || 'baby') === stg).map(k => {
           const owned = S.hats.includes(k), on = S.hat === k, lk = !owned && locked(stg);
+          if (sellMode) return owned ? row('sellAsk', 'hat:' + k, sprImg(k), HATS[k].name, 'vender +' + Math.floor(HATS[k].price / 2), 'danger') : '';
           return row(owned ? 'wearHat' : lk ? 'none' : 'buy', owned ? k : 'hat:' + k, sprImg(k), HATS[k].name, owned ? (on ? 'usando' : 'usar') : lk ? 'bloqueado' : HATS[k].price + '', owned ? 'owned' : lk ? 'disabled' : '');
         }).join('');
       }
@@ -237,6 +270,7 @@ const UI = (() => {
         list += Object.keys(OUTFITS).filter(k => (OUTFITS[k].stage || 'baby') === stg).map(k => {
           const owned = S.outfits.includes(k), on = S.outfit === k, lk = !owned && locked(stg);
           const icon = '<img class="ico" alt="" src="' + outfitIconURL(k) + '">';
+          if (sellMode) return owned ? row('sellAsk', 'outfit:' + k, icon, OUTFITS[k].name, 'vender +' + Math.floor(OUTFITS[k].price / 2), 'danger') : '';
           return row(owned ? 'wearOutfit' : lk ? 'none' : 'buy', owned ? k : 'outfit:' + k, icon, OUTFITS[k].name, owned ? (on ? 'usando' : 'usar') : lk ? 'bloqueado' : outfitPrice(k) + '', owned ? 'owned' : lk ? 'disabled' : '');
         }).join('');
       }
@@ -248,15 +282,24 @@ const UI = (() => {
         list += '<h3>' + esc(room.name) + ' · móveis</h3>';
         list += room.slots.map(key => {
           const f = FURN[key], up = hasUpgrade(key), t1 = f.tiers[1];
+          if (sellMode) return up ? row('sellAsk', 'furn:' + key, fi(t1.draw, t1.w, t1.h), t1.name, 'vender +' + Math.floor(t1.price / 2), 'danger') : '';
           return row(up ? 'none' : 'buy', up ? key : 'furn:' + key, fi(t1.draw, t1.w, t1.h), t1.name, up ? inRoomTxt : t1.price + '', up ? 'owned' : '');
         }).join('');
         list += '<h3>' + esc(room.name) + ' · decoração e brinquedos</h3>';
+        const ev = currentEvent();
         list += Object.keys(DECOR).filter(k => DECOR[k].room === room.id).map(k => {
           const d = DECOR[k], owned = S.decor.includes(k), paper = d.kind === 'paper';
+          if (d.event && !owned && !(ev && ev.id === d.event)) return '';
+          if (sellMode){
+            if (!owned) return '';
+            const def = decorDef(k);
+            return row('sellAsk', 'decor:' + k, d.tiers ? fi(def.draw, def.w, def.h) : (paper ? sprImg('brilho') : sprImg('coracao')), def.name || d.name, 'vender +' + Math.floor((d.tiers ? def.price : d.price) / 2), 'danger');
+          }
           if (d.tiers){
             const tier = owned ? decorTier(k) : -1;
             const star = d.use ? '<img class="star" alt="interativo" src="' + sprURL('estrela', {w:'#ffd23f'}) + '">' : '';
-            const nm = i => d.tiers[i].name + star;
+            const evTxt = d.event ? ' · ' + (ev && ev.id === d.event ? ev.name : 'evento') : '';
+            const nm = i => d.tiers[i].name + evTxt + star;
             let rows = '';
             if (tier < 0) rows += row('buy', 'decor:' + k + ':0', fi(d.tiers[0].draw, d.tiers[0].w, d.tiers[0].h), nm(0), d.tiers[0].price + '', '');
             if (tier === 0) rows += row('none', k, fi(d.tiers[0].draw, d.tiers[0].w, d.tiers[0].h), nm(0), inRoomTxt, 'owned');
@@ -276,13 +319,16 @@ const UI = (() => {
         list += Object.keys(SKINS).filter(k => (SKINS[k].group || 'natural') === g).map(k => {
           const owned = S.skins.includes(k), on = S.skin === k, sk = SKINS[k];
           const sw = sk.hood ? '<span class="ico" style="background:linear-gradient(135deg,' + sk.hood + ' 50%,' + sk.fur + ' 50%);border:2px solid #3a2a4a;border-radius:50%"></span>' : swatch(sk.fur);
+          if (sellMode) return owned && k !== 'bege' ? row('sellAsk', 'skin:' + k, sw, sk.name, 'vender +' + Math.floor(sk.price / 2), 'danger') : '';
           return row(owned ? 'skin' : 'buy', owned ? k : 'skin:' + k, sw, sk.name, owned ? (on ? 'usando' : 'usar') : sk.price + '', owned ? 'owned' : '');
         }).join('');
       }
     }
     const h = '<div class="panel">' +
       '<div style="display:flex;justify-content:space-between;align-items:center"><h2>Loja</h2>' +
-      '<div class="coins"><img alt="moedas" src="' + sprURL('moeda') + '">' + S.coins + '</div></div>' +
+      '<div class="coins"><img alt="moedas" src="' + sprURL('moeda') + '">' + S.coins + '</div>' +
+      (tab !== 'food' ? '<button class="sellmode ' + (sellMode ? 'on' : '') + '" data-act="sellToggle">' + (sellMode ? 'VENDENDO' : 'VENDER') + '</button>' : '') + '</div>' +
+      (sellMode && tab !== 'food' ? '<p class="sub">Toque num item seu para vender pela metade do preço.</p>' : '') +
       '<div class="tabs">' + tabs.map(t => '<button class="tab ' + (t[0] === tab ? 'on' : '') + '" data-act="tab" data-arg="' + t[0] + '">' + t[1] + '</button>').join('') + '</div>' +
       '<div class="list">' + list + '</div>' +
       '<button class="opt center" data-act="back">Voltar</button></div>';
@@ -294,6 +340,12 @@ const UI = (() => {
         SFX.play(r.ok ? 'buy' : 'no');
         toast(r.msg, 1400);
         if (r.ok){ shop(tab); if (cat === 'furn' || cat === 'decor'){ const room = ROOMS.findIndex(x => x.id === (cat === 'furn' ? FURN[key].room : DECOR[key].room)); if (room >= 0 && room !== SCENE.room) goRoom(room); } }
+      },
+      sellToggle:() => { sellMode = !sellMode; SFX.play('blip'); shop(tab); },
+      sellAsk:arg => {
+        const [cat, key] = arg.split(':');
+        const nm = cat === 'hat' ? HATS[key].name : cat === 'outfit' ? OUTFITS[key].name : cat === 'skin' ? SKINS[key].name : cat === 'furn' ? FURN[key].tiers[1].name : (decorDef(key).name || DECOR[key].name);
+        confirm('Vender ' + nm + '?', () => { const r = sell(cat, key); SFX.play(r.ok ? 'coin' : 'no'); toast(r.msg || 'Não deu.', 1500); shop(tab); }, () => shop(tab));
       },
       wearHat:k => { S.hat = k || ''; save(); SFX.play('ok'); shop(tab); },
       wearOutfit:k => { S.outfit = k || ''; save(); SFX.play('ok'); shop(tab); },
@@ -313,6 +365,7 @@ const UI = (() => {
       '<button class="opt" data-act="import"><span class="name">Carregar código</span><span class="meta">colar</span></button>' +
       '<button class="opt" data-act="skip"><span class="name">Modo teste: +12h</span><span class="meta">tempo</span></button>' +
       '<button class="opt" data-act="xp"><span class="name">Modo teste: +1 nível</span><span class="meta">xp</span></button>' +
+      '<button class="opt" data-act="tutorial"><span class="name">Ver tutorial</span></button>' +
       '<button class="opt danger" data-act="reset"><span class="name">Recomeçar do zero</span></button>' +
       '<button class="opt" data-act="about"><span class="name">Sobre</span></button>' +
       '</div><button class="opt center" data-act="back">Voltar</button></div>';
@@ -322,6 +375,7 @@ const UI = (() => {
       import:() => importPanel(hooks),
       skip:() => { SFX.play('ok'); hooks.skip(); settings(hooks); toast('Passaram 12 horas.', 1600); },
       xp:() => { SFX.play('ok'); addXp(xpForLevel(S.level + 1) - S.xp); save(); close(); },
+      tutorial:() => { SFX.play('ok'); hooks.tutorial(); },
       reset:() => confirm('Recomeçar do zero? O ratinho atual vai embora para sempre.', () => hooks.reset(), () => settings(hooks)),
       about:() => aboutPanel(hooks),
       back:() => { SFX.play('back'); close(); }
@@ -332,7 +386,8 @@ const UI = (() => {
     const h = '<div class="panel"><h2>Código do save</h2>' +
       '<p class="sub">Guarde este código para recuperar o ratinho em outro aparelho.</p>' +
       '<textarea class="code" id="saveCode" readonly>' + code + '</textarea>' +
-      '<button class="opt center" data-act="copy">Copiar</button>' +
+      '<button class="opt center" data-act="copy">Copiar código</button>' +
+      '<button class="opt center" data-act="file">Salvar arquivo (iCloud, Arquivos...)</button>' +
       '<button class="opt center" data-act="back" style="margin-top:auto">Voltar</button></div>';
     open('export', h, {
       copy:async () => {
@@ -344,14 +399,24 @@ const UI = (() => {
         SFX.play(ok ? 'ok' : 'no');
         toast(ok ? 'Copiado!' : 'Selecione o texto e copie.', 1600);
       },
+      file:async () => {
+        const name = 'tem-um-rato-aqui-' + (S.name || 'save').toLowerCase().replace(/[^a-z0-9]/g, '') + '.txt';
+        try {
+          const file = new File([code], name, {type:'text/plain'});
+          if (navigator.share && navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file], title:'Backup do ratinho'}); SFX.play('ok'); return; }
+          const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([code], {type:'text/plain'})); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+          SFX.play('ok'); toast('Arquivo salvo.', 1600);
+        } catch (e) { SFX.play('no'); toast('Não deu para salvar o arquivo. Use o código.', 1800); }
+      },
       back:() => settings(hooks)
     }, () => settings(hooks));
   }
   function importPanel(hooks){
     const h = '<div class="panel"><h2>Carregar código</h2>' +
-      '<p class="sub">Cole o código aqui. Isso substitui o ratinho atual.</p>' +
+      '<p class="sub">Cole o código aqui, ou escolha o arquivo de backup. Isso substitui o ratinho atual.</p>' +
       '<textarea class="code" id="loadCode"></textarea>' +
-      '<button class="opt center" data-act="load">Carregar</button>' +
+      '<button class="opt center" data-act="load">Carregar código</button>' +
+      '<label class="opt center" for="loadFile">Escolher arquivo de backup<input type="file" id="loadFile" accept=".txt,text/plain" style="display:none"></label>' +
       '<button class="opt center" data-act="back" style="margin-top:auto">Voltar</button></div>';
     open('import', h, {
       load:() => {
@@ -361,6 +426,13 @@ const UI = (() => {
       },
       back:() => settings(hooks)
     }, () => settings(hooks));
+    const inp = document.getElementById('loadFile');
+    if (inp) inp.addEventListener('change', () => {
+      const f = inp.files && inp.files[0]; if (!f) return;
+      const rd = new FileReader();
+      rd.onload = () => { if (importCode(String(rd.result))){ SFX.play('happy'); close(); hooks.loaded(); toast('Bem-vindo de volta, ' + S.name + '!'); } else { SFX.play('no'); toast('Arquivo inválido.', 1600); } };
+      rd.readAsText(f);
+    });
   }
   function aboutPanel(hooks){
     const h = '<div class="panel"><h2>Sobre</h2><div class="list" style="gap:4%">' +
@@ -444,5 +516,6 @@ const UI = (() => {
   function clearGameUI(){ el.querySelectorAll('.hud, .hint, .dpad, .quit, .timer').forEach(x => x.remove()); lastSec = -1; }
 
   return {open, close, isOpen, current, button, toast, title, intro, nameForm, foodMenu, playMenu, status, shop, settings,
-          confirm, evolved, result, gameIntro, hud, hint, timer, dpad, quitButton, clearGameUI, setFocus, topbar, hideTop, nav, hideNav};
+          confirm, evolved, result, gameIntro, hud, hint, timer, dpad, quitButton, clearGameUI, setFocus, topbar, hideTop, nav, hideNav,
+          tutorial, streakPanel};
 })();

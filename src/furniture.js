@@ -41,43 +41,26 @@ function books(ctx, x, y, w, h){
   let xx = x, i = 0;
   while (xx < x + w - 2){ const bw = 2 + (i % 2); const bh = h - (i % 3 === 1 ? 2 : 0); rect(ctx, xx, y + h - bh, bw, bh, cols[i % cols.length]); px(ctx, xx, y + h - bh, K); xx += bw + 1; i++; }
 }
-/* vista da janela: ceu conforme a hora de verdade */
+/* vista da janela: ceu conforme a hora de verdade e o clima do dia */
 function drawWindowView(ctx, x, y, w, h, t, cat){
   const hr = new Date().getHours() + new Date().getMinutes() / 60;
   const night = hr < 6 || hr >= 19, dusk = !night && (hr < 7 || hr >= 17);
-  rect(ctx, x, y, w, h, night ? '#1b1233' : dusk ? '#f5b06c' : '#9ad4f5');
-  if (night){ px(ctx, x + 3, y + 3, PAL.w); px(ctx, x + w - 5, y + 5, PAL.w); px(ctx, x + w / 2, y + 2, PAL.w); fillEllipse(ctx, x + w - 6, y + 6, 3, 3, '#fff3b0'); }
-  else { fillEllipse(ctx, x + w - 6, y + 5, 3, 3, dusk ? PAL.o : PAL.y); }
-  rect(ctx, x, y + h - 4, w, 4, night ? '#2f4149' : '#6ccf7a'); rect(ctx, x, y + h - 4, w, 1, night ? '#3c5361' : '#3c9a4c');
+  const wt = typeof todayWeather === 'function' ? todayWeather() : 'sol';
+  const gray = wt === 'chuva' || wt === 'neve';
+  rect(ctx, x, y, w, h, night ? (gray ? '#141020' : '#1b1233') : gray ? '#9aa4b8' : dusk ? '#f5b06c' : '#9ad4f5');
+  if (night && !gray){ px(ctx, x + 3, y + 3, PAL.w); px(ctx, x + w - 5, y + 5, PAL.w); px(ctx, x + w / 2, y + 2, PAL.w); fillEllipse(ctx, x + w - 6, y + 6, 3, 3, '#fff3b0'); }
+  else if (!night && !gray){ fillEllipse(ctx, x + w - 6, y + 5, 3, 3, dusk ? PAL.o : PAL.y); }
+  if (wt === 'nuvens' || gray){ const cc = gray ? '#c9c3d6' : PAL.w; fillEllipse(ctx, x + 6, y + 5, 5, 2, cc); fillEllipse(ctx, x + w - 8, y + 8, 6, 2, cc); }
+  const now = performance.now();
+  if (wt === 'chuva') for (let i = 0; i < 6; i++){ const dy = ((now / 50) + i * 9) % (h - 4); px(ctx, x + 2 + ((i * 7) % (w - 4)), y + dy, '#5aa9e6'); }
+  if (wt === 'neve') for (let i = 0; i < 6; i++){ const dy = ((now / 120) + i * 9) % (h - 4); px(ctx, x + 2 + ((i * 7 + Math.floor(dy / 6)) % (w - 4)), y + dy, PAL.w); }
+  rect(ctx, x, y + h - 4, w, 4, wt === 'neve' ? '#eaf6fa' : night ? '#2f4149' : '#6ccf7a'); rect(ctx, x, y + h - 4, w, 1, wt === 'neve' ? '#c9d9e6' : night ? '#3c5361' : '#3c9a4c');
   if (t != null){
     const bx = x + ((t / 40) % (w + 10)) - 5;
-    if (!cat){ px(ctx, bx, y + 6, K); px(ctx, bx + 1, y + 5, K); px(ctx, bx + 2, y + 6, K); px(ctx, bx + 6, y + 9, K); px(ctx, bx + 7, y + 8, K); px(ctx, bx + 8, y + 9, K); }
+    if (!cat && wt !== 'chuva'){ px(ctx, bx, y + 6, K); px(ctx, bx + 1, y + 5, K); px(ctx, bx + 2, y + 6, K); px(ctx, bx + 6, y + 9, K); px(ctx, bx + 7, y + 8, K); px(ctx, bx + 8, y + 9, K); }
   }
   if (cat){ const c = spriteCanvas('gato'); if (c) ctx.drawImage(c, x + Math.floor((w - 16) / 2), y + h - 4 - 12); }
 }
-/* rodinha: parte de tras e parte da frente, para o rato caber dentro */
-function drawWheelBack(ctx, cx, cy, r, colors){
-  fillEllipse(ctx, cx, cy, r + 1, r + 1, K);
-  fillEllipse(ctx, cx, cy, r, r, (colors && colors.inner) || '#e3dff0');
-}
-function drawWheelFront(ctx, cx, cy, r, ang, alpha, colors){
-  const rim = (colors && colors.rim) || PAL.g, spoke = (colors && colors.spoke) || PAL.G;
-  ctx.save();
-  ctx.globalAlpha = alpha == null ? 1 : alpha;
-  ringRows(ctx, cx, cy, r + 1, r - 3, rim);
-  ringRows(ctx, cx, cy, r + 1, r, K);
-  ringRows(ctx, cx, cy, r - 2, r - 3, K);
-  for (let i = 0; i < 6; i++){
-    const a = ang + i * Math.PI / 3;
-    const ex = cx + Math.cos(a) * (r - 3), ey = cy + Math.sin(a) * (r - 3);
-    const n = Math.ceil(r);
-    for (let s = 2; s <= n; s++){ const q = s / n; px(ctx, cx + (ex - cx) * q, cy + (ey - cy) * q, spoke); }
-  }
-  fillEllipse(ctx, cx, cy, 2, 2, K); px(ctx, cx, cy, rim);
-  ctx.restore();
-}
-const WHEEL_COLORS = [null, {rim:PAL.b, spoke:PAL.y, inner:'#dff3ff', base:PAL.r}];
-
 /* ---- desenho dos moveis: (ctx, x, y, w, h, o) ; x,y = canto superior esquerdo; o = {night, t, active, cat, on} ---- */
 const FDRAW = {
   /* SALA */
@@ -531,6 +514,73 @@ function notes(ctx, x, y, t){
   for (let i = 0; i < 3; i++){ const ph = ((t / 700) + i * 0.33) % 1; drawSpr(ctx, 'nota', x - 2 + i * 4, y - 4 - ph * 14, {alpha:1 - ph, remap:{k:[PAL.r, PAL.b, PAL.y][i]}}); }
 }
 function drawFurn(ctx, name, x, y, w, h, o){ const f = FDRAW[name]; if (f) f(ctx, x, y, w, h, o || {}); }
+/* itens de evento (aparecem na loja so durante a data) */
+FDRAW.fogueira_fosforo = function(ctx, x, y, w, h, o){
+  for (let i = 0; i < 4; i++){ rect(ctx, x + 2 + i * 4, y + h - 3, 3, 3, PAL.n); px(ctx, x + 3 + i * 4, y + h - 4, PAL.r); }
+  rect(ctx, x + 1, y + h - 2, w - 2, 2, PAL.N);
+  const f = Math.floor((o && o.t || 0) / 150) % 2;
+  const fl = [[1, PAL.r], [1, PAL.o], [2, PAL.o], [2, PAL.y], [3, PAL.o], [3, PAL.y], [2, PAL.y]];
+  fl.forEach((s, i) => rect(ctx, x + Math.floor(w / 2) - s[0] + (i === 0 ? f : 0), y + h - 4 - (fl.length - i), s[0] * 2 + 1, 1, s[1]));
+};
+FDRAW.fogueira_mini = function(ctx, x, y, w, h, o){
+  oEllipse(ctx, x + Math.floor(w / 2), y + h - 3, Math.floor(w / 2) - 1, 3, PAL.G, K);
+  for (let i = 0; i < 3; i++) box(ctx, x + 2 + i * 6, y + h - 8, 7, 3, PAL.n, K);
+  const f = Math.floor((o && o.t || 0) / 150) % 2;
+  const fl = [[1, PAL.r], [2, PAL.o], [2, PAL.o], [3, PAL.y], [4, PAL.o], [4, PAL.y], [3, PAL.y], [2, PAL.y]];
+  fl.forEach((s, i) => rect(ctx, x + Math.floor(w / 2) - s[0] + (i < 2 ? f : 0), y + h - 8 - (fl.length - i), s[0] * 2 + 1, 1, s[1]));
+};
+FDRAW.abobora_papel = function(ctx, x, y, w, h){
+  oEllipse(ctx, x + Math.floor(w / 2), y + Math.floor(h / 2) + 1, Math.floor(w / 2) - 1, Math.floor(h / 2) - 2, PAL.o, K);
+  rect(ctx, x + Math.floor(w / 2), y, 1, 3, PAL.E);
+  px(ctx, x + 4, y + 5, K); px(ctx, x + w - 5, y + 5, K); rect(ctx, x + 4, y + h - 5, w - 8, 1, K);
+};
+FDRAW.abobora_louca = function(ctx, x, y, w, h, o){
+  const cx = x + Math.floor(w / 2);
+  oEllipse(ctx, cx, y + Math.floor(h / 2) + 1, Math.floor(w / 2) - 1, Math.floor(h / 2) - 2, PAL.o, K);
+  rect(ctx, cx - 3, y + 3, 1, h - 6, '#e07c2a'); rect(ctx, cx + 3, y + 3, 1, h - 6, '#e07c2a');
+  rect(ctx, cx, y, 2, 3, PAL.E);
+  const glow = Math.floor((o && o.t || 0) / 400) % 2 ? PAL.y : '#fff3b0';
+  px(ctx, cx - 3, y + 5, glow); px(ctx, cx - 4, y + 6, glow); px(ctx, cx + 3, y + 5, glow); px(ctx, cx + 4, y + 6, glow);
+  for (let i = -3; i <= 3; i += 2) px(ctx, cx + i, y + h - 5, glow);
+};
+FDRAW.arvore_pet = function(ctx, x, y, w, h){
+  const cx = x + Math.floor(w / 2);
+  box(ctx, cx - 2, y + h - 4, 5, 4, PAL.N, K);
+  for (let r = 0; r < h - 5; r++){ const hw = Math.round((r / (h - 5)) * (w / 2 - 1)); rect(ctx, cx - hw - 1, y + r + 1, hw * 2 + 3, 1, K); rect(ctx, cx - hw, y + r + 1, hw * 2 + 1, 1, r % 4 === 3 ? '#4fa06a' : PAL.e); }
+  px(ctx, cx, y, PAL.y); px(ctx, cx - 3, y + 8, PAL.r); px(ctx, cx + 2, y + 12, PAL.b);
+};
+FDRAW.arvore_mini = function(ctx, x, y, w, h, o){
+  const cx = x + Math.floor(w / 2);
+  box(ctx, cx - 3, y + h - 5, 7, 5, PAL.N, K);
+  for (let r = 0; r < h - 6; r++){ const hw = Math.round((r / (h - 6)) * (w / 2 - 1)); rect(ctx, cx - hw - 1, y + r + 2, hw * 2 + 3, 1, K); rect(ctx, cx - hw, y + r + 2, hw * 2 + 1, 1, PAL.E); }
+  const bl = Math.floor((o && o.t || 0) / 350) % 2;
+  const balls = [[0, 5, PAL.r], [-3, 9, PAL.y], [3, 11, PAL.b], [-5, 15, PAL.p], [5, 16, PAL.r], [0, 13, PAL.y], [-2, 19, PAL.b], [4, 20, PAL.p]];
+  balls.forEach((b, i) => px(ctx, cx + b[0], y + b[1], (i % 2 === bl) ? b[2] : PAL.w));
+  px(ctx, cx, y, PAL.y); px(ctx, cx - 1, y + 1, PAL.y); px(ctx, cx + 1, y + 1, PAL.y);
+};
+/* rodinha: parte de tras e parte da frente, para o rato caber dentro */
+function drawWheelBack(ctx, cx, cy, r, colors){
+  fillEllipse(ctx, cx, cy, r + 1, r + 1, K);
+  fillEllipse(ctx, cx, cy, r, r, (colors && colors.inner) || '#e3dff0');
+}
+function drawWheelFront(ctx, cx, cy, r, ang, alpha, colors){
+  const rim = (colors && colors.rim) || PAL.g, spoke = (colors && colors.spoke) || PAL.G;
+  ctx.save();
+  ctx.globalAlpha = alpha == null ? 1 : alpha;
+  ringRows(ctx, cx, cy, r + 1, r - 3, rim);
+  ringRows(ctx, cx, cy, r + 1, r, K);
+  ringRows(ctx, cx, cy, r - 2, r - 3, K);
+  for (let i = 0; i < 6; i++){
+    const a = ang + i * Math.PI / 3;
+    const ex = cx + Math.cos(a) * (r - 3), ey = cy + Math.sin(a) * (r - 3);
+    const n = Math.ceil(r);
+    for (let s = 2; s <= n; s++){ const q = s / n; px(ctx, cx + (ex - cx) * q, cy + (ey - cy) * q, spoke); }
+  }
+  fillEllipse(ctx, cx, cy, 2, 2, K); px(ctx, cx, cy, rim);
+  ctx.restore();
+}
+const WHEEL_COLORS = [null, {rim:PAL.b, spoke:PAL.y, inner:'#dff3ff', base:PAL.r}];
+
 const _furnIcons = new Map();
 function furnIconURL(name, w, h){
   const key = name + w + 'x' + h;
@@ -607,6 +657,15 @@ const DECOR = {
   janela:  {room:'quarto', label:'Janela', wall:true, x:0.60, y:12, use:'janela',
             tiers:[{name:'Buraco com vista',        draw:'janela_buraco',  w:22, h:18, price:20},
                    {name:'Janela com cortina',      draw:'janela_moldura', w:26, h:22, price:70}]},
+  fogueira:{room:'sala', label:'Fogueira junina', x:0.50, floor:true, dy:8, event:'junina',
+            tiers:[{name:'Fogueira de palitos de fósforo', draw:'fogueira_fosforo', w:18, h:16, price:25},
+                   {name:'Fogueira miniatura com luz',     draw:'fogueira_mini',    w:22, h:20, price:70}]},
+  abobora: {room:'sala', label:'Abóbora', x:0.50, floor:true, dy:8, event:'halloween',
+            tiers:[{name:'Abóbora de papel',  draw:'abobora_papel', w:14, h:12, price:20},
+                   {name:'Abóbora de louça com luz', draw:'abobora_louca', w:16, h:14, price:60}]},
+  arvore:  {room:'sala', label:'Árvore de Natal', x:0.50, floor:true, dy:8, event:'natal',
+            tiers:[{name:'Árvore de garrafa PET',      draw:'arvore_pet',  w:16, h:26, price:30},
+                   {name:'Árvore de Natal miniatura',  draw:'arvore_mini', w:20, h:32, price:90}]},
   /* cozinha */
   relogio:   {room:'cozinha', label:'Relógio', wall:true, x:0.84, y:10,
               tiers:[{name:'Relógio de tampa de pote', draw:'relogio_tampa', w:16, h:16, price:15},

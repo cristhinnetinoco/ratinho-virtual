@@ -47,7 +47,11 @@
       case 'comer':
         inRoom(1, () => UI.foodMenu(k => {
           const r = feed(k);
-          if (r.ok){ SFX.play('eat'); UI.close(); setAnim('eat', 1700, {food:k}); setTimeout(addCrumbs, 900); UI.toast(r.msg, 1500); }
+          if (r.ok){
+            SFX.play('eat'); UI.close(); setAnim('eat', 1700, {food:k}); setTimeout(addCrumbs, 900); UI.toast(r.msg, 1600);
+            if (r.mood === 'fav') setTimeout(() => { SFX.play('happy'); setAnim('happy', 1400); addHearts(4); }, 1700);
+            if (r.mood === 'hate') setTimeout(() => { SFX.play('no'); setAnim('no', 1200); }, 1000);
+          }
           else { SFX.play('no'); UI.toast(r.msg); if (!S.sleeping) setAnim('no', 900); }
         }));
         break;
@@ -94,6 +98,9 @@
       if (ev.indexOf('evolve:') === 0){
         SFX.play('evolve'); setAnim('evolve', 2600); UI.evolved(ev.split(':')[1]); save(); return;
       } else if (ev.indexOf('level:') === 0){ SFX.play('win'); UI.toast('Nível ' + ev.split(':')[1] + '! +5 moedas', 1800); addHearts(3); }
+      else if (ev.indexOf('trick:') === 0){ const k = ev.split(':')[1]; SFX.play('win'); UI.toast('Aprendeu um truque: ' + TRICKS[k].name + '! Toque duas vezes nele.', 2600); setAnim('trick', 1400, {sub:k}); }
+      else if (ev.indexOf('ach:') === 0){ const a = ACHIEVEMENTS.find(x => x.id === ev.split(':')[1]); if (a){ SFX.play('win'); UI.toast('Conquista: ' + a.name + '! +20 moedas', 2400); addHearts(3); } }
+      else if (ev.indexOf('streak:') === 0){ const p = ev.split(':'); UI.streakPanel(parseInt(p[1], 10), p.slice(2).join(':')); return; }
       else if (ev === 'sick'){ SFX.play('sick'); UI.toast(S.name + ' ficou doente!'); }
       else if (ev === 'woke'){ SFX.play('wake'); UI.toast(S.name + ' acordou sozinho!'); SCENE.ratX = bedSpot().x; SCENE.ratY = LAY.walkTop; randomWalkTarget(); }
       else if (ev === 'autosleep'){ SFX.play('sleep'); UI.toast(S.name + ' caiu no sono de tanto cansaço.'); }
@@ -120,10 +127,12 @@
         UI.nav(d => { SFX.play('blip'); goRoom(SCENE.room + d, d); });
       } else { UI.hideTop(); UI.hideNav(); }
     }
-    saveT += dt;
+    saveT += dt; checkT += dt;
+    if (checkT > 5000){ checkT = 0; if (S.started){ checkTricks(); checkAchievements(); } }
     if (saveT > 10000){ saveT = 0; if (S.started) save(); }
     requestAnimationFrame(loop);
   }
+  let checkT = 0;
 
   /* ---- toque na tela ---- */
   function canvasXY(e){
@@ -165,33 +174,44 @@
         const r = cleanPoop(); if (r.ok){ SFX.play('ok'); UI.toast(r.msg, 1200); } return;
       }
     }
-    const pos = ratPos(ROOMS[SCENE.room].id);
-    if (!pos) return;
-    if (Math.abs(x - pos.x) < 18 && y > ratTop(S.stage, pos.y) - 6 && y < pos.y + 6){
+    const zone = ratZone(x, y);
+    if (zone){
       if (S.sleeping){ UI.toast('Zzz...', 900); return; }
-      const r = petRat();
-      if (r.ok){ SFX.play('pet'); setAnim('pet', 900); addHearts(2); }
-      else { UI.toast(r.msg, 900); }
+      const now = performance.now();
+      if (now - lastRatTap < 350 && knownTricks().length){ lastRatTap = 0; if (doTrick()) return; }
+      lastRatTap = now;
+      if (zone === 'belly'){ petRat('belly'); SFX.play('pet'); setAnim('tickle', 1400); UI.toast(ratLine('tickle'), 1200); addHearts(1); }
+      else if (zone === 'ear'){ petRat('ear'); SFX.play('blip'); setAnim('ear', 900); UI.toast(ratLine('ear'), 1200); }
+      else { petRat('head'); SFX.play('pet'); setAnim('pet', 900); addHearts(2); if (Math.random() < 0.6) UI.toast(ratLine(), 1400); }
     }
   }
+  let lastRatTap = 0;
   let pd = null;
   cv.addEventListener('pointerdown', e => {
     e.preventDefault(); SFX.ensure();
     const p = canvasXY(e);
     try { cv.setPointerCapture(e.pointerId); } catch (err) {}
-    pd = {x:p.x, y:p.y, t:performance.now()};
+    pd = {x:p.x, y:p.y, t:performance.now(), zone:(!GAMES.active() && !UI.isOpen() && S.started && !S.sleeping) ? ratZone(p.x, p.y) : null, moved:0, lx:p.x, ly:p.y};
     if (GAMES.active()) GAMES.pointer('down', p.x, p.y);
     else if (UI.current() === 'title') UI.button('B');
   });
-  cv.addEventListener('pointermove', e => { if (GAMES.active()){ const p = canvasXY(e); GAMES.pointer('move', p.x, p.y); } });
+  cv.addEventListener('pointermove', e => {
+    const p = canvasXY(e);
+    if (GAMES.active()){ GAMES.pointer('move', p.x, p.y); return; }
+    if (pd){ pd.moved += Math.hypot(p.x - pd.lx, p.y - pd.ly); pd.lx = p.x; pd.ly = p.y; }
+  });
   function pointerEnd(e){
     const p = canvasXY(e);
     if (GAMES.active()){ GAMES.pointer('up', p.x, p.y); pd = null; return; }
     if (!pd) return;
     const dx = p.x - pd.x, dy = p.y - pd.y, dtm = performance.now() - pd.t;
+    const zone = pd.zone, moved = pd.moved;
     pd = null;
     if (UI.isOpen()) return;
-    if (Math.abs(dx) > 28 && Math.abs(dx) > Math.abs(dy) * 1.5 && dtm < 600){
+    if (zone && moved > 14){
+      petRat('cuddle'); SFX.play('pet'); setAnim('cuddle', 2200); addHearts(3); UI.toast(ratLine('cuddle'), 1400); return;
+    }
+    if (!zone && Math.abs(dx) > 28 && Math.abs(dx) > Math.abs(dy) * 1.5 && dtm < 600){
       SFX.play('blip'); goRoom(SCENE.room + (dx < 0 ? 1 : -1), dx < 0 ? 1 : -1); return;
     }
     if (Math.abs(dx) < 10 && Math.abs(dy) < 10) roomTap(p.x, p.y);
@@ -222,9 +242,15 @@
     if (k){ e.preventDefault(); press(k); }
   });
 
+  function dailyCheck(){
+    const r = checkStreak();
+    if (r) S.pending.push('streak:' + r.day + ':' + r.text);
+    const ev = currentEvent();
+    if (ev && S.eventSeen !== ev.id){ S.eventSeen = ev.id; save(); setTimeout(() => UI.toast('É ' + ev.name + '! Tem item especial na loja.', 2600), 1500); }
+  }
   document.addEventListener('visibilitychange', () => {
     if (document.hidden){ if (S.started) save(); }
-    else { if (S.started){ simulate(Date.now() - S.last); save(); } lastWall = Date.now(); last = performance.now(); }
+    else { if (S.started){ simulate(Date.now() - S.last); save(); dailyCheck(); } lastWall = Date.now(); last = performance.now(); }
   });
   window.addEventListener('pagehide', () => { if (S.started) save(); });
 
@@ -234,10 +260,13 @@
   if (had && S.started){ simulate(Date.now() - S.last); save(); }
   SCENE.room = S.room || 0;
   SCENE.ratX = W / 2; SCENE.targetX = W / 2; SCENE.ratY = LAY.ratY; SCENE.targetY = LAY.ratY;
+  const firstSteps = () => { UI.tutorial(() => { S.tutorialDone = true; save(); UI.toast('Oi, ' + S.name + '!'); addHearts(3); }); };
+  hooks.reset = () => { UI.intro(name => { startNew(name); SCENE.room = 0; SCENE.ratX = W / 2; SCENE.ratY = LAY.ratY; SCENE.targetX = W / 2; SCENE.targetY = LAY.ratY; firstSteps(); }); };
+  hooks.tutorial = () => UI.tutorial(() => {});
   UI.title(() => {
     SFX.ensure(); SFX.play('ok');
-    if (S.started){ UI.close(); }
-    else { UI.intro(name => { startNew(name); UI.toast('Oi, ' + S.name + '!'); addHearts(3); }); }
+    if (S.started){ UI.close(); dailyCheck(); }
+    else { UI.intro(name => { startNew(name); firstSteps(); }); }
   });
   requestAnimationFrame(loop);
 })();

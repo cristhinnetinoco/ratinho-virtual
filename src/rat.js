@@ -306,6 +306,15 @@ function drawFace(ctx, cx, ey, stage, face, t, blushCol){
       break;
     case 'wow':
       eyesNormal(); rect(ctx, cx - 1, my, 3, 3, K); rect(ctx, cx, my + 1, 1, 1, PAL.P); break;
+    case 'dead':
+      px(ctx, cx - 5, ey, K); px(ctx, cx - 3, ey, K); px(ctx, cx - 4, ey + 1, K); px(ctx, cx - 5, ey + 2, K); px(ctx, cx - 3, ey + 2, K);
+      px(ctx, cx + 3, ey, K); px(ctx, cx + 5, ey, K); px(ctx, cx + 4, ey + 1, K); px(ctx, cx + 3, ey + 2, K); px(ctx, cx + 5, ey + 2, K);
+      rect(ctx, cx - 1, my, 3, 1, K); rect(ctx, cx, my + 1, 2, 2, PAL.P); break;
+    case 'laugh':
+      px(ctx, cx - 5, ey + 1, K); px(ctx, cx - 4, ey, K); px(ctx, cx - 3, ey, K); px(ctx, cx - 2, ey + 1, K);
+      px(ctx, cx + 2, ey + 1, K); px(ctx, cx + 3, ey, K); px(ctx, cx + 4, ey, K); px(ctx, cx + 5, ey + 1, K);
+      rect(ctx, cx - 2, my, 5, 3, K); rect(ctx, cx - 1, my + 1, 3, 1, PAL.P); rect(ctx, cx - 1, my, 3, 1, PAL.w);
+      blush(); break;
     case 'eat':
       eyesNormal();
       if (Math.floor(t / 180) % 2 === 0){ rect(ctx, cx - 1, my, 3, 2, K); }
@@ -479,7 +488,7 @@ function drawRat(ctx, x, y, o){
     if (skin.spots){ fillEllipse(ctx, bcx + brx - 4, bcy - 2, 3, 2, skin.spots); }
     if (skin.hood){ rect(ctx, bcx - 1, bcy - bry + 1, 3, Math.round(bry * 0.9), skin.hood); }
     if (o.outfit) drawOutfit(ctx, o.outfit, {cx:bcx, cy:bcy, rx:brx, ry:bry, top:bcy - bry + 1, bottom:bcy + bry - 2, arms:[], feetY:y - 2});
-    if (o.holding){
+    if (o.holding || o.armsUp){
       oEllipse(ctx, x - 5, hcy + HRY, 2, 2, skin.fur, K); oEllipse(ctx, x + 5, hcy + HRY, 2, 2, skin.fur, K);
     } else {
       oEllipse(ctx, bcx - brx + 1, bcy, 2, 3, skin.sh, K); oEllipse(ctx, bcx + brx - 1, bcy, 2, 3, skin.sh, K);
@@ -500,7 +509,7 @@ function drawRat(ctx, x, y, o){
       drawOutfit(ctx, o.outfit, {cx:hcx, cy:hcy, rx:HRX, ry:HRY, top:hcy + 3, bottom:hcy + HRY - 2, arms:[], feetY:y - 2});
     }
     if (stage === 'young'){
-      if (o.holding){ oEllipse(ctx, x - 6, hcy + 3, 2, 2, skin.fur, K); oEllipse(ctx, x + 6, hcy + 3, 2, 2, skin.fur, K); }
+      if (o.holding || o.armsUp){ oEllipse(ctx, x - 6, hcy + 3, 2, 2, skin.fur, K); oEllipse(ctx, x + 6, hcy + 3, 2, 2, skin.fur, K); }
       else {
         oEllipse(ctx, bcx - brx + 1, bcy + 3, 2, 2, skin.sh, K); oEllipse(ctx, bcx + brx - 1, bcy + 3, 2, 2, skin.sh, K);
         if (o.outfit) drawOutfit(ctx, o.outfit, {cx:bcx, cy:bcy, rx:0, ry:0, top:1, bottom:0, arms:[[bcx - brx + 1, bcy + 3], [bcx + brx - 1, bcy + 3]], feetY:y - 2});

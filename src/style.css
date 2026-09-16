@@ -43,6 +43,12 @@ body{
 .topbar .lvl i{display:block;width:4.5em;height:.45em;border:1px solid #fffaf0;background:#1b1233}
 .topbar .lvl b{display:block;height:100%;background:#3fb7a0}
 .opt .star{width:.7em;height:.7em;margin-left:4px;image-rendering:pixelated;vertical-align:middle}
+.medals{display:flex;flex-wrap:wrap;gap:4px}
+.medal{font-size:.72em;border:2px solid #3a2a4a;padding:1px 5px;background:#e9dfc9;color:#6b5a86;opacity:.6}
+.medal.on{background:#ffd23f;color:#3a2a4a;opacity:1}
+.sellmode{appearance:none;border:2px solid #3a2a4a;background:#e9dfc9;color:#3a2a4a;font-family:"Press Start 2P",monospace;font-size:.34em;padding:3px 6px;cursor:pointer}
+.sellmode.on{background:#e05a4e;color:#fffaf0}
+label.opt{cursor:pointer}
 .topbar .coins img{width:1.8em;height:1.8em;image-rendering:pixelated}
 .nav{
   position:absolute;top:44%;width:2em;height:3em;

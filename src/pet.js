@@ -31,9 +31,117 @@ function newState(){
     hats:[], hat:'', outfits:[], outfit:'',
     furn:{}, decor:[], decorTier:{}, paper:'', skins:['bege'], skin:'bege', room:0,
     uses:{}, bank:0, hidden:false,
-    stats:{fed:0, played:0, baths:0, meds:0, pets:0, evolutions:0},
-    best:{}, sound:true, pending:[]
+    stats:{fed:0, played:0, baths:0, meds:0, pets:0, evolutions:0, uses:0, ride:0},
+    best:{}, sound:true, pending:[],
+    fav:'', hate:'', favKnown:false, hateKnown:false,
+    tricks:{}, ach:{}, streak:0, lastDay:'', tutorialDone:false
   };
+}
+const FOOD_KEYS = () => Object.keys(FOODS);
+function pickFoods(){
+  const keys = FOOD_KEYS();
+  S.fav = keys[Math.floor(Math.random() * keys.length)];
+  do { S.hate = keys[Math.floor(Math.random() * keys.length)]; } while (S.hate === S.fav);
+}
+/* ---- truques: aprendidos por repeticao ---- */
+const TRICKS = {
+  girar:   {name:'Girar',            how:'15 carinhos',   stat:'pets',   need:15},
+  tchau:   {name:'Dar tchau',        how:'10 brinquedos', stat:'uses',   need:10},
+  morto:   {name:'Fingir de morto',  how:'10 banhos',     stat:'baths',  need:10},
+  pulinho: {name:'Pulinho',          how:'10 mini-jogos', stat:'played', need:10}
+};
+function checkTricks(){
+  S.tricks = S.tricks || {};
+  for (const k of Object.keys(TRICKS)){
+    const t = TRICKS[k];
+    if (!S.tricks[k] && (S.stats[t.stat] || 0) >= t.need){ S.tricks[k] = Date.now(); addXp(10); S.pending.push('trick:' + k); }
+  }
+}
+function knownTricks(){ return Object.keys(TRICKS).filter(k => S.tricks && S.tricks[k]); }
+/* ---- conquistas ---- */
+const ACHIEVEMENTS = [
+  {id:'chef',         name:'Chef de queijo', desc:'50 refeições',                test:() => S.stats.fed >= 50},
+  {id:'limpinho',     name:'Limpinho',       desc:'25 banhos',                   test:() => S.stats.baths >= 25},
+  {id:'maratonista',  name:'Maratonista',    desc:'Correu 1 km na rodinha',      test:() => (S.stats.ride || 0) >= 1000},
+  {id:'jogador',      name:'Jogador',        desc:'30 mini-jogos',               test:() => S.stats.played >= 30},
+  {id:'colecionador', name:'Colecionador',   desc:'Todos os móveis melhorados',  test:() => Object.keys(FURN).every(k => hasUpgrade(k))},
+  {id:'fashion',      name:'Fashionista',    desc:'10 roupas ou acessórios',     test:() => S.hats.length + S.outfits.length >= 10},
+  {id:'brincalhao',   name:'Brincalhão',     desc:'50 usos de brinquedos',       test:() => (S.stats.uses || 0) >= 50},
+  {id:'crescido',     name:'Crescido',       desc:'Virou adulto',                test:() => S.stage === 'adult'},
+  {id:'rico',         name:'Rico',           desc:'500 moedas de uma vez',       test:() => S.coins >= 500},
+  {id:'veterano',     name:'Veterano',       desc:'Chegou ao nível 10',          test:() => S.level >= 10},
+  {id:'artista',      name:'Artista',        desc:'Aprendeu os 4 truques',       test:() => Object.keys(TRICKS).every(k => S.tricks && S.tricks[k])},
+  {id:'fiel',         name:'Fiel',           desc:'7 dias seguidos',             test:() => (S.streak || 0) >= 7}
+];
+function checkAchievements(){
+  if (!S.started) return;
+  S.ach = S.ach || {};
+  for (const a of ACHIEVEMENTS){
+    if (!S.ach[a.id] && a.test()){ S.ach[a.id] = Date.now(); S.coins += 20; addXp(15); S.pending.push('ach:' + a.id); }
+  }
+}
+/* ---- dias seguidos ---- */
+const STREAK_REWARDS = [
+  {coins:10, text:'10 moedas'},
+  {coins:15, text:'15 moedas'},
+  {food:'queijo', n:2, text:'2 queijos'},
+  {coins:25, text:'25 moedas'},
+  {food:'bolo', n:1, text:'1 bolo'},
+  {coins:40, text:'40 moedas'},
+  {rare:true, text:'um presente raro'}
+];
+function dayKey(d){ d = d || new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+/* devolve {day, text} se hoje ainda nao foi contado */
+function checkStreak(){
+  if (!S.started) return null;
+  const today = dayKey();
+  if (S.lastDay === today) return null;
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  S.streak = (S.lastDay === dayKey(y)) ? (S.streak || 0) + 1 : 1;
+  S.lastDay = today;
+  const r = STREAK_REWARDS[Math.min(S.streak, 7) - 1];
+  let text = r.text;
+  if (r.coins) S.coins += r.coins;
+  if (r.food) S.inv[r.food] = (S.inv[r.food] || 0) + r.n;
+  if (r.rare){
+    const pool = Object.keys(HATS).filter(k => !S.hats.includes(k) && (HATS[k].stage || 'baby') === 'baby').concat(Object.keys(OUTFITS).filter(k => !S.outfits.includes(k) && (OUTFITS[k].stage || 'baby') === 'baby'));
+    if (pool.length){ const k = pool[Math.floor(Math.random() * pool.length)]; if (HATS[k]){ S.hats.push(k); text = HATS[k].name; } else { S.outfits.push(k); text = OUTFITS[k].name; } }
+    else { S.coins += 100; text = '100 moedas'; }
+  }
+  addXp(5);
+  save();
+  return {day:S.streak, text};
+}
+/* ---- eventos por data e clima do dia ---- */
+function currentEvent(){
+  const d = new Date(), m = d.getMonth() + 1, day = d.getDate();
+  if (m === 6) return {id:'junina', name:'Festa Junina'};
+  if ((m === 10 && day >= 15) || (m === 11 && day <= 2)) return {id:'halloween', name:'Halloween'};
+  if (m === 12 || (m === 1 && day <= 6)) return {id:'natal', name:'Natal'};
+  return null;
+}
+function todayWeather(){
+  const d = new Date(), m = d.getMonth() + 1;
+  let h = 0; const s = dayKey(d); for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  const r = h % 10;
+  if ((m === 7 || m === 8) && r < 3) return 'neve';
+  return r < 5 ? 'sol' : r < 8 ? 'nuvens' : 'chuva';
+}
+/* ---- vender ---- */
+function sell(cat, key){
+  let refund = 0;
+  if (cat === 'hat'){ if (!S.hats.includes(key)) return {ok:false}; refund = Math.floor(HATS[key].price / 2); S.hats = S.hats.filter(k => k !== key); if (S.hat === key) S.hat = ''; }
+  else if (cat === 'outfit'){ if (!S.outfits.includes(key)) return {ok:false}; refund = Math.floor(OUTFITS[key].price / 2); S.outfits = S.outfits.filter(k => k !== key); if (S.outfit === key) S.outfit = ''; }
+  else if (cat === 'decor'){
+    if (!S.decor.includes(key)) return {ok:false};
+    const d = DECOR[key]; refund = Math.floor((d.tiers ? d.tiers[decorTier(key)].price : d.price) / 2);
+    S.decor = S.decor.filter(k => k !== key); delete S.decorTier[key]; if (S.paper === key) S.paper = '';
+    if (key === 'casinha') S.hidden = false;
+  }
+  else if (cat === 'furn'){ if (!hasUpgrade(key)) return {ok:false}; refund = Math.floor(FURN[key].tiers[1].price / 2); S.furn[key] = 0; }
+  else if (cat === 'skin'){ if (!S.skins.includes(key) || key === 'bege') return {ok:false}; refund = Math.floor(SKINS[key].price / 2); S.skins = S.skins.filter(k => k !== key); if (S.skin === key) S.skin = 'bege'; }
+  S.coins += refund; save();
+  return {ok:true, msg:'Vendido por ' + refund + ' moedas.'};
 }
 let S = newState();
 
@@ -60,6 +168,10 @@ function load(){
     S.uses = d.uses || {}; S.bank = d.bank || 0; S.hidden = !!d.hidden;
     if (S.paper && !DECOR[S.paper]) S.paper = '';
     S.room = Math.min(ROOMS.length - 1, Math.max(0, d.room || 0));
+    if (!S.fav || !FOODS[S.fav]) pickFoods();
+    S.tricks = d.tricks || {}; S.ach = d.ach || {};
+    if (d.tutorialDone == null) S.tutorialDone = true;
+    if (!S.lastDay){ S.lastDay = dayKey(); S.streak = 1; }
     if (d.xp == null){
       const st = S.stats || {};
       S.xp = Math.floor(S.age || 0) + (st.fed || 0) * 4 + (st.played || 0) * 10 + (st.baths || 0) * 5;
@@ -202,14 +314,17 @@ function feed(key){
   if (S.hunger >= 95 && f.fun === 0) return {ok:false, msg:S.name + ' está cheio!'};
   S.inv[key]--;
   S.hunger = clamp(S.hunger + f.hunger);
-  S.fun = clamp(S.fun + (f.fun || 0) + (hasUpgrade('mesa') ? 5 : 0));
+  let fun = (f.fun || 0) + (hasUpgrade('mesa') ? 5 : 0), msg = 'Nhac nhac!', mood = 'ok';
+  if (key === S.fav){ fun = fun * 2 + 10; msg = 'Minha comida favorita!'; mood = 'fav'; S.favKnown = true; }
+  else if (key === S.hate){ fun = -3; msg = 'Eca... isso não!'; mood = 'hate'; S.hateKnown = true; }
+  S.fun = clamp(S.fun + fun);
   if (f.energy) S.energy = clamp(S.energy + f.energy * (hasUpgrade('fogao') ? 2 : 1));
   if (f.hygiene) S.hygiene = clamp(S.hygiene + f.hygiene);
   S.weight = clamp(S.weight + f.w, 20, 200);
   S.stats.fed++;
   addXp(4);
   save();
-  return {ok:true, msg:'Nhac nhac!'};
+  return {ok:true, msg, mood};
 }
 function toggleLight(){
   if (S.sleeping){
@@ -243,10 +358,14 @@ function medicine(){
   return {ok:true, msg:'Blergh... mas melhorou!'};
 }
 let _lastPet = 0;
-function petRat(){
+/* kind: 'head' (carinho), 'belly' (cocegas), 'ear' (orelha), 'cuddle' (cafune longo) */
+function petRat(kind){
   if (S.sleeping) return {ok:false, msg:'Zzz...'};
   const now = Date.now();
-  if (now - _lastPet > 8000){ S.fun = clamp(S.fun + (hasUpgrade('sofa') ? 5 : 3)); S.stats.pets++; _lastPet = now; addXp(1); save(); }
+  if (now - _lastPet > 8000){
+    S.fun = clamp(S.fun + (kind === 'cuddle' ? 5 : 3) + (hasUpgrade('sofa') ? 2 : 0));
+    S.stats.pets++; _lastPet = now; addXp(1); save();
+  }
   return {ok:true, msg:''};
 }
 function finishGame(id, score, coins){
@@ -294,5 +413,7 @@ function startNew(name){
   const keep = {sound:S.sound};
   S = newState();
   S.name = name; S.started = true; S.born = Date.now(); S.last = Date.now(); S.sound = keep.sound;
+  pickFoods();
+  S.lastDay = dayKey(); S.streak = 1;
   save();
 }

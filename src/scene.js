@@ -119,7 +119,7 @@ function useItem(key){
   stopRide();
   S.uses = S.uses || {}; S.uses[key] = Date.now();
   u.fx(key === 'espelho' ? (hasUpgrade('pia') ? 1 : 0) : decorTier(key));
-  S.stats.pets++;
+  S.stats.uses = (S.stats.uses || 0) + 1;
   addXp(3);
   const r = key === 'espelho' ? furnRect('pia') : decorRect(key);
   const data = {key};
@@ -296,7 +296,7 @@ function updateScene(dt, t){
       SCENE.ratX += dx * k; SCENE.ratY += dy * k;
       if (Math.abs(dx) > 1) SCENE.dir = dx < 0 ? -1 : 1;
       SCENE.wheelAng += (dx < 0 ? -1 : 1) * mv / WHEEL_R;
-      SCENE.rideDist += mv;
+      SCENE.rideDist += mv; S.stats.ride = (S.stats.ride || 0) + mv;
       if (SCENE.rideDist > 40){ SCENE.rideDist = 0; S.fun = clamp(S.fun + 1); S.energy = clamp(S.energy - 0.3); if (Math.random() < 0.3) addHearts(1); }
     }
   } else if (S.started && !S.sleeping && !S.hidden && !SCENE.anim && mood() !== 'sick'){
@@ -305,6 +305,8 @@ function updateScene(dt, t){
       SCENE.walkT = 2500 + Math.random() * 5000;
       if (Math.random() < 0.65) randomWalkTarget();
     }
+    SCENE.idleT = (SCENE.idleT == null ? 6000 : SCENE.idleT) - dt;
+    if (SCENE.idleT <= 0){ SCENE.idleT = 9000 + Math.random() * 14000; startIdle(); }
     const dx = SCENE.targetX - SCENE.ratX, dy = SCENE.targetY - SCENE.ratY;
     const dist = Math.hypot(dx, dy);
     if (dist > 0.5){
@@ -322,9 +324,75 @@ function updateScene(dt, t){
   SCENE.fx = SCENE.fx.filter(f => t < f.until);
 }
 
+/* ---------- comportamentos ociosos, falas e truques ---------- */
+const IDLES = {yawn:1600, stretch:1400, scratch:1200, sniff:1800, groom:2200, sofa:9000, lookwin:5000};
+function startIdle(){
+  const room = ROOMS[SCENE.room].id;
+  const opts = ['yawn', 'stretch', 'scratch', 'sniff', 'groom'];
+  if (room === 'sala') opts.push('sofa', 'sofa');
+  if (room === 'quarto' && hasDecor('janela')) opts.push('lookwin');
+  const sub = opts[Math.floor(Math.random() * opts.length)];
+  if (sub === 'sofa'){ const f = furnRect('sofa'); SCENE.ratX = f.x + Math.round(f.w / 2); SCENE.ratY = f.y + f.h - 3; SCENE.dir = 1; }
+  if (sub === 'lookwin'){ const r = decorRect('janela'); SCENE.ratX = r.x + Math.round(r.w / 2); SCENE.ratY = LAY.walkTop; }
+  SCENE.targetX = SCENE.ratX; SCENE.targetY = SCENE.ratY;
+  setAnim('idle', IDLES[sub], {sub});
+}
+const LINES = {
+  baby:  ['Uii!', 'De novo, de novo!', 'Cadê o queijo?', 'Brinca comigo?', 'Squeak!', 'Colo?'],
+  young: ['Tá, tá...', 'Tô ocupado.', 'Cadê meu fone?', 'Só mais 5 minutos.', 'Tô lindo, né?', 'Que tédio.'],
+  adult: ['Bom dia. Café?', 'Isso é sério.', 'Um queijo cairia bem.', 'Obrigado pela visita.', 'Tudo em ordem.', 'Elegante, eu sei.'],
+  sick:  ['Cof cof...', 'Não tô bem...', 'Remédio, por favor.'],
+  sad:   ['Tô triste...', 'Ninguém liga pra mim.', 'Suspiro.'],
+  hungry:['Fome!', 'Queijo. Agora.', 'Minha barriga roncou.'],
+  sleepy:['Tô com sono...', 'Bocejo.', 'Cama?'],
+  happy: ['Melhor dia!', 'Te amo!', 'Feliz demais!'],
+  tickle:['Hahaha!', 'Para, para!', 'Cócegas não!', 'Hihihi!'],
+  ear:   ['Ei, a orelha!', 'Isso faz cócegas.', 'Hmm...'],
+  cuddle:['Aaah...', 'Cafuné bom.', 'Não para.', 'Zzz... ops.']
+};
+function ratLine(kind){
+  let pool;
+  if (kind) pool = LINES[kind];
+  else if (S.sick) pool = LINES.sick;
+  else if (S.hunger < 25) pool = LINES.hungry;
+  else if (S.energy < 25) pool = LINES.sleepy;
+  else if (mood() === 'sad') pool = LINES.sad;
+  else if (mood() === 'happy' && Math.random() < 0.4) pool = LINES.happy;
+  else pool = LINES[S.stage] || LINES.baby;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+function doTrick(){
+  const known = knownTricks();
+  if (!known.length) return false;
+  const k = known[Math.floor(Math.random() * known.length)];
+  setAnim('trick', k === 'morto' ? 2000 : 1400, {sub:k});
+  S.fun = clamp(S.fun + 2);
+  SFX.play(k === 'morto' ? 'sad' : 'happy');
+  return true;
+}
+function drawEventAmbient(ctx, night, t){
+  const ev = currentEvent(); if (!ev) return;
+  const top = LAY.top;
+  if (ev.id === 'junina'){
+    const cols = [PAL.r, PAL.y, PAL.b, PAL.e, PAL.p, PAL.o];
+    rect(ctx, 0, top + 6, W, 1, PAL.k);
+    for (let x = 2, i = 0; x < W; x += 9, i++){ for (let r = 0; r < 5; r++) rect(ctx, x + r, top + 7 + r, 7 - r * 2, 1, cols[i % cols.length]); }
+  } else if (ev.id === 'halloween'){
+    for (let i = 0; i < 7; i++){ px(ctx, i * 3, top + 2 + i * 2, PAL.g); px(ctx, 2 + i * 2, top + i * 3, PAL.g); }
+    for (let i = 1; i < 5; i++){ rect(ctx, 0, top + i * 4, i * 5, 1, PAL.g); rect(ctx, i * 4, top, 1, i * 5, PAL.g); }
+    const bx = W - 30 + Math.round(Math.sin(t / 500) * 6), by = top + 12 + Math.round(Math.cos(t / 700) * 3);
+    px(ctx, bx - 3, by - 1, PAL.k); px(ctx, bx - 2, by, PAL.k); px(ctx, bx - 1, by, PAL.k); px(ctx, bx, by + 1, PAL.k); px(ctx, bx + 1, by, PAL.k); px(ctx, bx + 2, by, PAL.k); px(ctx, bx + 3, by - 1, PAL.k);
+  } else if (ev.id === 'natal'){
+    const cols = [PAL.r, PAL.y, PAL.e, PAL.b];
+    for (let x = 0; x < W; x += 2) px(ctx, x, top + 5 + Math.round(Math.sin(x / 8) * 2), PAL.E);
+    for (let x = 3, i = 0; x < W; x += 8, i++){ const on = (i + Math.floor(t / 400)) % 2 === 0; rect(ctx, x, top + 7 + Math.round(Math.sin(x / 8) * 2), 2, 3, on ? cols[i % 4] : PAL.G); }
+  }
+}
+
 function drawRoom(ctx, r, ox, night, withRat, t){
   ctx.save(); ctx.translate(ox, 0);
   drawRoomBg(ctx, r, night);
+  if (ROOMS[r].id === 'sala') drawEventAmbient(ctx, night, t);
   drawRoomItems(ctx, r, night, t);
   for (let i = 0; i < S.poops; i++){ const p = poopSpot(i); if (p.room === r) drawSpr(ctx, 'coco', p.x - 4, p.y - 8); }
   if (withRat) drawRatInRoom(ctx, r, t);
@@ -344,10 +412,28 @@ function drawRatInRoom(ctx, r, t){
   const roomId = ROOMS[r].id;
   const pos = ratPos(roomId); if (!pos) return;
   let face = m === 'sick' ? 'sick' : m === 'sad' ? 'sad' : (SCENE.blinking ? 'blink' : 'normal');
-  let holding = null, flip = SCENE.dir < 0, sleeping = S.sleeping;
+  let holding = null, flip = SCENE.dir < 0, sleeping = S.sleeping, armsUp = false;
   let rx = pos.x, ry = pos.y;
   if (S.sleeping) flip = false;
-  if (a){
+  if (a && a.type === 'idle'){
+    const ph = t - (a.until - IDLES[a.sub]);
+    if (a.sub === 'yawn'){ face = 'wow'; }
+    else if (a.sub === 'stretch'){ armsUp = true; face = 'blink'; ry -= 1; }
+    else if (a.sub === 'scratch'){ flip = Math.floor(t / 120) % 2 === 0; face = 'blink'; }
+    else if (a.sub === 'sniff'){ face = 'normal'; const k = Math.floor(ph / 300) % 3; px(ctx, rx + (flip ? -1 : 1) * (9 + k * 2), ratTop(S.stage, ry) + 12 - k, PAL.G); }
+    else if (a.sub === 'groom'){ face = 'blink'; armsUp = Math.floor(t / 300) % 2 === 0; }
+    else if (a.sub === 'sofa'){ face = 'happy'; }
+    else if (a.sub === 'lookwin'){ face = 'wow'; }
+  } else if (a && a.type === 'trick'){
+    const ph = t - (a.until - (a.sub === 'morto' ? 2000 : 1400));
+    if (a.sub === 'girar'){ flip = Math.floor(t / 90) % 2 === 0; face = 'happy'; }
+    else if (a.sub === 'tchau'){ armsUp = Math.floor(t / 250) % 2 === 0; face = 'happy'; }
+    else if (a.sub === 'morto'){ face = 'dead'; ry += 2; }
+    else if (a.sub === 'pulinho'){ face = 'happy'; ry -= Math.round(Math.abs(Math.sin(ph / 220)) * 10); }
+  } else if (a && a.type === 'tickle'){ face = 'laugh'; ry -= (Math.floor(t / 110) % 2) * 2; flip = Math.floor(t / 400) % 2 === 0; }
+  else if (a && a.type === 'ear'){ face = 'blink'; flip = Math.floor(t / 150) % 2 === 0; }
+  else if (a && a.type === 'cuddle'){ face = 'pet'; ry += (Math.floor(t / 500) % 2); }
+  else if (a){
     if (a.type === 'eat'){ face = 'eat'; holding = a.food; flip = false; }
     else if (a.type === 'snack'){ const ph = t - (a.until - 2600); if (ph > 700){ face = 'eat'; holding = 'biscoito'; } else face = 'wow'; flip = false; }
     else if (a.type === 'drink'){ face = Math.floor(t / 250) % 2 ? 'eat' : 'wow'; flip = false; ry -= 2; }
@@ -371,7 +457,7 @@ function drawRatInRoom(ctx, r, t){
     ry = ry - 4 + (moving ? (Math.floor(t / 120) % 2) : 0);
   }
   drawRat(ctx, rx, ry, {
-    stage:S.stage, form:S.form, skin:S.skin, hat:S.hat, outfit:S.outfit, face, t, flip, sleeping, holding
+    stage:S.stage, form:S.form, skin:S.skin, hat:S.hat, outfit:S.outfit, face, t, flip, sleeping, holding, armsUp
   });
   if (riding) drawWheelFront(ctx, rx, pos.y - WHEEL_R + 2, WHEEL_R, SCENE.wheelAng, 0.55, WHEEL_COLORS[decorTier('roda')]);
   if (a && a.type === 'nap'){ const rr = decorRect('rede'); const def = decorDef('rede'); ctx.save(); ctx.globalAlpha = 0.85; rect(ctx, rr.x + Math.round(rr.w / 2) - 11, rr.y + rr.h - 6, 22, 5, decorTier('rede') ? PAL.p : PAL.g); rect(ctx, rr.x + Math.round(rr.w / 2) - 11, rr.y + rr.h - 2, 22, 1, PAL.k); ctx.restore(); }
@@ -396,7 +482,16 @@ function drawRatInRoom(ctx, r, t){
     else if (f.kind === 'brilho') drawSpr(ctx, 'brilho', f.x, f.y - p * 6, {alpha:1 - p});
     else if (f.kind === 'coin') drawSpr(ctx, 'moeda', f.x, f.y - p * 22, {alpha:1 - p});
   }
-  if (!S.sleeping && !a) drawNeedsHint(ctx, t, rx, ry);
+  if (!S.sleeping && (!a || a.type === 'idle')) drawNeedsHint(ctx, t, rx, ry);
+}
+/* zona tocada no rato: 'ear' | 'belly' | 'head' */
+function ratZone(x, y){
+  const pos = ratPos(ROOMS[SCENE.room].id); if (!pos) return null;
+  const top = ratTop(S.stage, pos.y);
+  if (Math.abs(x - pos.x) > 18 || y < top - 6 || y > pos.y + 6) return null;
+  if (y < top + 7 && Math.abs(x - pos.x) > 3) return 'ear';
+  if (y > pos.y - (S.stage === 'adult' ? 14 : 10)) return 'belly';
+  return 'head';
 }
 
 function drawScene(ctx, t){
